@@ -17,8 +17,7 @@ read_docx.py
 .claudeignore
 .claude/
 
-# Google Cloud service account key
-backend-api/service-account-key.json
+
 
 
 CURRENT_STATUS.md

@@ -3,13 +3,40 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash
 from flask_cors import CORS
 import decimal
+import os
+from google.cloud.sql.connector import Connector
+import pymysql
 
-#initialize flask object
+# Set path to service account key FIRST (before creating Connector)
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
+    os.path.dirname(__file__),
+    'service-account-key.json'
+)
+
+# Initialize flask object
 app = Flask(__name__)
 CORS(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost:3307/byte2bite_db'
+# Initialize Cloud SQL Connector
+connector = Connector()
+
+def getconn():
+    conn = connector.connect(
+        "carbide-ego-476119-a7:us-central1:byte2bite",
+        "pymysql",
+        user="byte2bite",
+        password="Byte2Bite224!",
+        db="byte2bite_db"
+    )
+    return conn
+
+# Configure SQLAlchemy to use Cloud SQL
+app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://"
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "creator": getconn,
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 #database models
