@@ -20,3 +20,5 @@ read_docx.py
 
 # Google Cloud service account key - IMPORTANT: Never commit this!
 backend-api/service-account-key.json
+
+CURRENT_STATUS.md
