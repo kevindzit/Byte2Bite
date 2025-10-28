@@ -1,13 +1,14 @@
-Ignore the Python virtual environment folder
+# Ignore the Python virtual environment folder
 venv/
 .venv/
-Ignore Python's cache folders
-pycache/
 
-Ignore VS Code specific settings folder
+# Ignore Python's cache folders
+__pycache__/
+
+# Ignore VS Code specific settings folder
 .vscode/
 
-Ignore common OS files (for Mac users)
+# Ignore common OS files (for Mac users)
 .DS_Store
 
 # Ignore project notes and AI helper files
@@ -17,7 +18,5 @@ read_docx.py
 .claudeignore
 .claude/
 
-
-.gitignore
-CURRENT_STATUS.md
-frontofhousenotes.md
+# Google Cloud service account key - IMPORTANT: Never commit this!
+backend-api/service-account-key.json
