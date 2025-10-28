@@ -17,7 +17,7 @@ read_docx.py
 .claudeignore
 .claude/
 
-
+service-account-key.json
 
 
 CURRENT_STATUS.md
