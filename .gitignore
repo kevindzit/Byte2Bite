@@ -9,3 +9,17 @@ Ignore VS Code specific settings folder
 
 Ignore common OS files (for Mac users)
 .DS_Store
+
+# Ignore project notes and AI helper files
+project_notes_folder/
+CLAUDE.md
+read_docx.py
+.claudeignore
+.claude/
+
+# Google Cloud service account key
+backend-api/service-account-key.json
+
+
+CURRENT_STATUS.md
+frontofhousenotes.md

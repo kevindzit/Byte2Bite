@@ -56,6 +56,14 @@ class OrderItems(db.Model):
     Quantity = db.Column(db.Integer, nullable=False)
     PricePerItem = db.Column(db.Numeric(10, 2), nullable=False)
 
+class Payments(db.Model):
+    __tablename__ = 'Payments'
+    PaymentID = db.Column(db.Integer, primary_key=True)
+    OrderID = db.Column(db.Integer, db.ForeignKey('Orders.OrderID'))
+    Amount = db.Column(db.Numeric(10, 2), nullable=False)
+    PaymentMethod = db.Column(db.String(20), nullable=False)
+    PaymentTime = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
 #api endpoints
 @app.route('/')
 def hello():
@@ -100,6 +108,24 @@ def create_customer():
     db.session.commit()
     return jsonify({'message': 'Account created successfully'}), 201
 
+@app.route('/api/customers/search', methods=['GET'])
+def search_customer():
+    phone = request.args.get('phone')
+    if not phone:
+        return jsonify({'message': 'Phone number required'}), 400
+
+    customer = Customers.query.filter_by(PhoneNumber=phone).first()
+    if not customer:
+        return jsonify({'message': 'Customer not found'}), 404
+
+    return jsonify({
+        'id': customer.CustomerID,
+        'firstName': customer.FirstName,
+        'lastName': customer.LastName,
+        'email': customer.Email,
+        'phoneNumber': customer.PhoneNumber
+    })
+
 @app.route('/api/orders', methods=['POST'])
 def place_order():
     data = request.get_json()
@@ -136,6 +162,17 @@ def place_order():
             db.session.add(order_item)
 
     db.session.commit()
+
+    # Add payment record if payment data provided
+    payment_data = data.get('payment')
+    if payment_data:
+        new_payment = Payments(
+            OrderID=new_order.OrderID,
+            Amount=payment_data['amount'],
+            PaymentMethod=payment_data['method']
+        )
+        db.session.add(new_payment)
+        db.session.commit()
 
     return jsonify({'message': 'Order placed successfully', 'orderId': new_order.OrderID}), 201
 
@@ -193,6 +230,79 @@ def update_order_status(order_id):
     db.session.commit()
 
     return jsonify({'message': f'Order {order_id} status updated to {new_status}'})
+
+@app.route('/api/orders', methods=['GET'])
+def get_orders():
+    # Get orders for kitchen display (Pending/Preparing)
+    orders = Orders.query.filter(
+        Orders.Status.in_(['Pending', 'Preparing'])
+    ).order_by(Orders.OrderTime).all()
+
+    orders_list = []
+    for order in orders:
+        # Get customer name
+        customer = db.session.get(Customers, order.CustomerID) if order.CustomerID else None
+        customer_name = f"{customer.FirstName} {customer.LastName}" if customer else "Guest"
+
+        # Get order items
+        items_query = db.session.query(OrderItems, MenuItems.Name).join(
+            MenuItems, OrderItems.MenuItemID == MenuItems.MenuItemID
+        ).filter(OrderItems.OrderID == order.OrderID).all()
+
+        items_str = ", ".join([
+            f"{order_item.Quantity}x {name}"
+            for order_item, name in items_query
+        ])
+
+        orders_list.append({
+            'id': order.OrderID,
+            'customer_name': customer_name,
+            'items': items_str,
+            'status': order.Status,
+            'created_at': order.OrderTime.strftime('%Y-%m-%d %H:%M:%S') if order.OrderTime else ''
+        })
+
+    return jsonify(orders_list)
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    # Get completed orders
+    orders = Orders.query.filter_by(Status='Completed').order_by(
+        Orders.OrderTime.desc()
+    ).limit(50).all()
+
+    orders_list = []
+    for order in orders:
+        customer = db.session.get(Customers, order.CustomerID) if order.CustomerID else None
+        customer_name = f"{customer.FirstName} {customer.LastName}" if customer else "Guest"
+
+        items_query = db.session.query(OrderItems, MenuItems.Name).join(
+            MenuItems, OrderItems.MenuItemID == MenuItems.MenuItemID
+        ).filter(OrderItems.OrderID == order.OrderID).all()
+
+        items_str = ", ".join([f"{order_item.Quantity}x {name}" for order_item, name in items_query])
+
+        orders_list.append({
+            'id': order.OrderID,
+            'customer_name': customer_name,
+            'items': items_str,
+            'status': order.Status,
+            'created_at': order.OrderTime.strftime('%Y-%m-%d %H:%M:%S') if order.OrderTime else ''
+        })
+
+    return jsonify(orders_list)
+
+@app.route('/api/orders/<int:order_id>', methods=['PATCH'])
+def patch_order_status(order_id):
+    order = db.session.get(Orders, order_id)
+    if not order:
+        return jsonify({'message': 'Order not found'}), 404
+
+    data = request.get_json()
+    order.Status = data.get('status', order.Status)
+    db.session.commit()
+
+    return jsonify({'message': 'Order updated'})
 
 
 if __name__ == '__main__':
