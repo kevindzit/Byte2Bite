@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Byte2Bite - Choose Location</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Fullscreen hero image */
+    .hero {
+      position: relative;
+      width: 100%;
+      height: 30vh;
+      background: url('food.webp') no-repeat center center;
+      background-size: cover;
+    }
+
+    header {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      padding: 20px;
+      background: rgba(0,0,0,0.35); /* Adds readability */
+      backdrop-filter: blur(3px); /* Nice glass effect */
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    main {
+      margin-top: 40px;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .locations {
+	  display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 3 columns */
+      gap: 12px;
+      max-width: 600px;
+      margin: 0 auto 20px;
+    }
+
+
+    button {
+      background-color: #ffcc00;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #ffaa00;
+    }
+
+    input {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      width: 200px;
+      font-size: 1em;
+      margin-top: 10px;
+    }
+
+    input:focus {
+      outline: none;
+      box-shadow: 0 0 5px #ffcc00;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <header>
+      <h1>Mi Casa Restaurant</h1>
+    </header>
+  </div>
+
+  <main>
+    <h2>Select a Location</h2>
+    <div class="locations">
+      <button onclick="selectLocation('Wheaton')">Wheaton</button>
+      <button onclick="selectLocation('Elmhurst')">Elmhurst</button>
+      <button onclick="selectLocation('Oak Brook')">Oak Brook</button>
+      <button onclick="selectLocation('Wood Dale')">Wood Dale</button>
+      <button onclick="selectLocation('Roselle')">Roselle</button>
+      <button onclick="selectLocation('Glendale Heights')">Glendale Heights</button>
+      <button onclick="selectLocation('Barlett')">Bartlett</button>
+      <button onclick="selectLocation('Hoffman Estates')">Hoffman Estates</button>
+      <button onclick="selectLocation('Westmont')">Westmont</button>
+      <button onclick="selectLocation('Darien')">Darien</button>
+      <button onclick="selectLocation('Bolingbrook')">Bolingbrook</button>
+      <button onclick="selectLocation('Western Springs')">Western Springs</button>
+    </div>
+    <p>or enter ZIP code:</p>
+    <input type="text" id="zip" placeholder="Enter ZIP code" />
+    <button onclick="enterZip()">Continue</button>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
