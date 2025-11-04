@@ -17,6 +17,7 @@ CLAUDE.md
 read_docx.py
 .claudeignore
 .claude/
+Venv/
 
 # Google Cloud service account key - IMPORTANT: Never commit this!
 backend-api/service-account-key.json
