@@ -8,12 +8,8 @@ from google.cloud.sql.connector import Connector
 import pymysql
 from google.cloud import storage
 
-# Set path to service account key FIRST (before creating Connector)
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
-    os.path.dirname(__file__),
-    'service-account-key.json'
-)
 client = storage.Client()
+
 # Initialize flask object
 app = Flask(__name__)
 CORS(app)

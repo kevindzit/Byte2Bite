@@ -1,0 +1,10 @@
+from ..extensions import db
+
+
+class Payments(db.Model):
+    __tablename__ = 'Payments'
+    PaymentID = db.Column(db.Integer, primary_key=True)
+    OrderID = db.Column(db.Integer, db.ForeignKey('Orders.OrderID'))
+    Amount = db.Column(db.Numeric(10, 2), nullable=False)
+    PaymentMethod = db.Column(db.String(20), nullable=False)
+    PaymentTime = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
