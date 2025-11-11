@@ -1,3 +1,6 @@
+// API endpoint
+const API_BASE = 'http://127.0.0.1:5000';
+
 // =====================
 // GLOBAL CART FUNCTIONS
 // =====================
@@ -57,17 +60,24 @@ async function loadMenu(location) {
   }
 }
 
+function displayMenuItems(menu) {
+  const container = document.getElementById("menu-container");
+
   menu.forEach(item => {
     const div = document.createElement("div");
     div.className = "menu-item";
+    // Use image from API, fallback to placeholder if not available
+    const imageUrl = item.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400';
     div.innerHTML = `
-      <img src="${item.image}" alt="${item.name}">
+      <img src="${imageUrl}" alt="${item.name}" style="width: 100%; height: 200px; object-fit: cover;">
       <h3>${item.name}</h3>
-      <p>$${item.price.toFixed(2)}</p>
+      <p>${item.description || ''}</p>
+      <p>$${parseFloat(item.price).toFixed(2)}</p>
       <button onclick="addToCart('${item.name}', ${item.price})">Add to Cart</button>
     `;
     container.appendChild(div);
   });
+}
 
 // =====================
 // CHECKOUT PAGE SUPPORT

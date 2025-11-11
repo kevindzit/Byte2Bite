@@ -23,3 +23,7 @@ Venv/
 backend-api/service-account-key.json
 
 CURRENT_STATUS.md
+
+# Image management (keep private)
+update_menu_images.py
+HOW_TO_UPDATE_IMAGES.txt
