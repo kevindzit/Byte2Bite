@@ -8,12 +8,11 @@ from google.cloud.sql.connector import Connector
 import pymysql
 from google.cloud import storage
 
+
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
     os.path.dirname(__file__),
     'service-account-key.json'
 )
-
-print("Using credentials from:", os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
 
 client = storage.Client()
 

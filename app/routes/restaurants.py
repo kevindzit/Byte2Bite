@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify
 from ..models import Restaurants
 
 
-bp = Blueprint("estaurants", __name__)
+bp = Blueprint("restaurants", __name__)
 
 
 @bp.get("/restaurants")
