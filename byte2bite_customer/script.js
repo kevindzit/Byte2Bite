@@ -27,10 +27,35 @@ function addToCart(name, price) {
 // LOAD MENU FROM BACKEND
 // =====================
 async function loadMenu(location) {
-  const response = await fetch(`http://127.0.0.1:5000/api/menu/${location}`);
-  const menu = await response.json();
   const container = document.getElementById("menu-container");
-  container.innerHTML = "";
+
+  //Loading message
+  container.textContent = "Loading menu...";
+
+  try {
+    const response = await fetch(`${API_BASE}/api/menu/${location}`);
+
+    if (!response.ok) {
+      //Backend returned a bad response (like 404 or 500)
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    const menu = await response.json();
+
+    //If no menu items are found,
+    if (!menu || menu.length === 0) {
+      container.textContent = "No menu items available for this location.";
+      return;
+    }
+
+    //Show message with clear loading text and display menu items
+    container.innerHTML = "";
+    displayMenuItems(menu);
+  } catch (error) {
+    console.error("Error loading menu:", error);
+    container.textContent = "⚠️ Unable to load the menu. Please try again later.";
+  }
+}
 
   menu.forEach(item => {
     const div = document.createElement("div");
@@ -43,7 +68,6 @@ async function loadMenu(location) {
     `;
     container.appendChild(div);
   });
-}
 
 // =====================
 // CHECKOUT PAGE SUPPORT

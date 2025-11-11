@@ -953,6 +953,13 @@
                 return;
             }
 
+            // Verify order total before submission
+            if (total <= 0) {
+                alert("Please add at least one item to the order.");
+                return;
+            }
+
+
             const orderData = {
                 locationId: parseInt(selectedRestaurant),
                 customerId: selectedCustomer?.id || null,
