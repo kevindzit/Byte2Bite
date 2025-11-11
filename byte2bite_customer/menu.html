@@ -100,7 +100,8 @@
   <script src="script.js"></script>
   <script>
     // Load menu from Flask for a default location (e.g., "Wheaton")
-    loadMenu("Wheaton");
+      const selected = localStorage.getItem("selectedLocation") || "Wheaton";
+      loadMenu(selected);
   </script>
 </body>
 </html>
