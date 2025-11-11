@@ -7,15 +7,23 @@ bp = Blueprint("menu", __name__)
 
 
 
-@bp.get("/menu/<int:location_id>")
-def get_menu(location_id: int):
-    items = MenuItems.query.filter_by(RestaurantID=location_id, IsAvailable=True).all()
-    results = []
-    for item in items:
-        results.append({
-            "id": item.MenuItemID,
-            "name": item.Name,
-            "price": float(item.Price),
-            "description": item.Description if hasattr(item, "Description") else "",
-        })
-    return jsonify(results)
+@app.route("/api/menu/<int:location_id>")
+def get_menu(location_id):
+    try:
+        items = MenuItems.query.filter_by(RestaurantID=location_id).all()
+
+        if not items:
+            return jsonify({"error": "No menu items found for this location"}), 404
+
+        return jsonify([{
+            "id": i.MenuItemID,
+            "name": i.Name,
+            "description": i.Description,
+            "price": float(i.Price),
+            "category": i.Category,
+            "available": i.IsAvailable
+        } for i in items]), 200
+
+    except Exception as e:
+        app.logger.error(f"Error fetching menu for {location_id}: {e}")
+        return jsonify({"error": "Internal server error"}), 500
