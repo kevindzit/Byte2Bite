@@ -3,6 +3,7 @@ from .menu_items import MenuItems
 from .customers import Customers
 from .orders import Orders, OrderItems
 from .payments import Payments
+from .inventory_items import InventoryItems
 
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "Orders",
     "OrderItems",
     "Payments",
+    "InventoryItems"
 ]
