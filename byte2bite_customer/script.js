@@ -315,15 +315,23 @@ function updateCartQuantity(index, qty) {
 async function placeOrder() {
   const name = document.getElementById("customer-name").value || "Guest";
   const cart = getCart();
-  if (cart.length === 0) return alert("Your cart is empty!");
+  if (cart.length === 0) {
+    alert("Your cart is empty!");
+    return;
+  }
 
   const { id: locationId, label } = getStoredLocation();
 
   const payload = {
     locationId,
-    items: cart.map(i => ({ id: i.id, quantity: i.quantity })),
+    items: cart.map(i => ({
+      id: i.id,
+      quantity: i.quantity
+    })),
     customerName: name
   };
+
+  console.log("Placing order with payload:", payload);
 
   try {
     const res = await fetch(`${API_BASE}/api/orders`, {
@@ -332,19 +340,27 @@ async function placeOrder() {
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-    localStorage.removeItem("cart");
+    const text = await res.text(); 
+    console.log("Order response status:", res.status);
+    console.log("Order response body:", text);
 
-    localStorage.setItem(
-      "orderMsg",
-      data.orderId
-        ? `Order #${data.orderId} placed for ${label}.`
-        : "Your order has been placed."
-    );
+    if (!res.ok) {
+      alert(`Order failed (${res.status}). Check backend log for details.`);
+      return;
+    }
+
+    const data = text ? JSON.parse(text) : {};
+
+    localStorage.removeItem("cart");
+    const msg = data.orderId
+      ? `Order #${data.orderId} placed for ${label}.`
+      : "Your order has been placed.";
+    localStorage.setItem("orderMsg", msg);
 
     window.location.href = "confirmation.html";
-  } catch (e) {
-    alert("Unable to place order.");
+  } catch (err) {
+    console.error("Network/JS error placing order:", err);
+    alert("Unable to place order. Is the API server running?");
   }
 }
 

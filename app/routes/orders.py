@@ -149,6 +149,45 @@ def get_active_orders():
     return jsonify(orders_list)
 
 
+@bp.post("/orders")
+def create_order():
+    data = request.get_json(silent=True) or {}
+
+    location_id = data.get("locationId")
+    items = data.get("items") or []
+    customer_name = data.get("customerName")
+    customer_id = data.get("customerId")  
+
+    if not location_id or not items:
+        return jsonify({"error": "locationId and items are required"}), 400
+
+
+    payload = {
+        "locationId": location_id,
+        "items": items,
+        "customerId": customer_id,
+        "customerName": customer_name or "Guest",
+    }
+
+    try:
+
+        order = place_order_with_items(payload)
+
+        order_id = getattr(order, "OrderID", None) or getattr(order, "id", None)
+        if order_id is None and isinstance(order, dict):
+            order_id = order.get("orderId") or order.get("id")
+
+        return jsonify({
+            "message": "Order created",
+            "orderId": order_id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print("Error in create_order:", e)
+        return jsonify({"error": "Failed to create order"}), 500
+
+
 @bp.get("/history")
 def get_history():
     status_col = _status_col()
