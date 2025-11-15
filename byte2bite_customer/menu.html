@@ -2,33 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Checkout - Byte2Bite</title>
+  <title>Mi Casa Menu</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="hero">
+  <div class="hero hero-menu">
     <header>
-      <h1>Checkout</h1>
+      <h1>Mi Casa Restaurant</h1>
     </header>
   </div>
 
-  <main>
-    <div id="cart-items"></div>
-    <h3 id="total">Total: $0.00</h3>
+  <main class="menu-main">
+    <div class="menu-header-bar">
+      <button class="icon-btn" onclick="toggleMenu()">&#9776;</button>
 
-    <div class="name-field">
-      <label for="customer-name"><strong>Your Name:</strong></label>
-      <input type="text" id="customer-name" placeholder="Enter your name (optional)" />
+      <h2 id="menu-heading">Mi Casa Menu</h2>
+
+      <button
+        class="icon-btn customer-cart"
+        onclick="window.location.href='checkout.html'"
+      >
+        &#128722; <span id="cartCount">0</span>
+      </button>
     </div>
 
-    <div class="checkout-btns">
-      <button onclick="placeOrder()">Place Order (Pay In-Store)</button>
-    </div>
+    <div id="menu-tabs"></div>
+
+    <div id="menu-container"></div>
   </main>
 
+<div id="sideMenu" class="side-menu">
+  <button class="close-btn" onclick="toggleMenu()">×</button>
+
+  <a href="index.html">Change Location</a>
+  <a href="checkout.html">View Cart</a>
+  <a href="#">Order History</a>
+  <a href="#">Help</a>
+</div>
+
+
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+<script>
+function toggleMenu() {
+  const menu = document.getElementById("sideMenu");
+  const overlay = document.getElementById("menuOverlay");
+
+  menu.classList.toggle("open");
+  overlay.classList.toggle("show");
+}
+</script>
   <script src="script.js"></script>
   <script>
-    loadCart();
+    initMenuPage();
   </script>
 </body>
 </html>

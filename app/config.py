@@ -1,9 +1,11 @@
 import os
+from google.cloud import storage
 
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
-    os.path.dirname(__file__),
-    'service-account-key.json'
-)
+
+# ********CHANGE FILE PATH TO JSON FILE!**********
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join("C:\\Users\\chris\\Documents\\School\\COD\\2025Fall\\Capstone\\carbide-ego-476119-a7-737c5fbfffb9.json")
+
+
 
 class Config:
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://"
