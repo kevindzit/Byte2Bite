@@ -1,5 +1,9 @@
 import os
 
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
+    os.path.dirname(__file__),
+    'service-account-key.json'
+)
 
 class Config:
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://"
