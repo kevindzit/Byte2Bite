@@ -109,14 +109,16 @@ def get_active_orders():
         db.session.query(
             Orders,
             Restaurants.Name.label("restaurant_name"),
-            func.concat(Customers.FirstName, " ", Customers.LastName).label("customer_name"),
+            func.coalesce(
+                Orders.CustomerName,
+                func.concat(Customers.FirstName, " ", Customers.LastName) 
+            ).label("customer_name"),
         )
         .join(Restaurants, Orders.RestaurantID == Restaurants.RestaurantID)
         .outerjoin(Customers, Orders.CustomerID == Customers.CustomerID)
         .filter(Orders.Status.in_(["Pending", "Preparing"]))
         .all()
     )
-
     orders_list = []
     for order, restaurant_name, customer_name in active_orders_query:
         items_query = (

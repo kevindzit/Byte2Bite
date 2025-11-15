@@ -137,38 +137,51 @@
       }
     }
 
-    async function undoLastAction() {
-      if (!lastAction) {
-        alert("Nothing to undo yet.");
-        return;
-      }
+async function undoLastAction() {
+  if (!lastAction) {
+    alert("Nothing to undo yet.");
+    return;
+  }
 
-      const { orderId, previousStatus, previousIndex, removedOrder } = lastAction;
+  const { orderId, previousStatus, previousIndex, removedOrder } = lastAction;
 
-      try {
-        const res = await fetch(`http://127.0.0.1:5000/api/orders/${orderId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: previousStatus })
-        });
+  // Always revert the status to "Pending"
+  const forcedStatus = "Pending";
 
-        if (!res.ok) throw new Error("Failed to undo last action");
+  try {
+    // Send status update to backend (always set to Pending)
+    const res = await fetch(`http://127.0.0.1:5000/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: forcedStatus })
+    });
 
-        if (removedOrder) {
-          orders.splice(previousIndex, 0, removedOrder);
-        } else {
-          const target = orders.find(order => order.id === orderId);
-          if (target) target.status = previousStatus;
-        }
+    if (!res.ok) throw new Error("Failed to undo last action");
 
-        currentIndex = orders.length ? Math.min(previousIndex, orders.length - 1) : 0;
-        lastAction = null;
-        showOrder();
-      } catch (err) {
-        console.error(err);
-        alert("Unable to undo the last action. Check the console for details.");
-      }
+    // If order was removed (completed), put it back where it was
+    if (removedOrder) {
+      const restoredOrder = { ...removedOrder, status: forcedStatus };
+      orders.splice(previousIndex, 0, restoredOrder);
+    } 
+    else {
+      // Otherwise just update the status in the existing list
+      const target = orders.find(o => o.id === orderId);
+      if (target) target.status = forcedStatus;
     }
+
+    // Return to original position
+    currentIndex = orders.length
+      ? Math.min(previousIndex, orders.length - 1)
+      : 0;
+
+    lastAction = null;
+    showOrder();
+  } catch (err) {
+    console.error(err);
+    alert("Unable to undo the last action. Check console.");
+  }
+}
+
 
     function getCustomerName(order) {
       const direct = order.customer_name || order.customerName || order.customer;
