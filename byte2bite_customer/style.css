@@ -85,6 +85,24 @@ input {
   border-radius: 5px;
 }
 
+.locations {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; 
+  max-width: 900px; 
+  margin: 20px auto 0;   
+}
+
+.locations button {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.locations button {
+  padding: 15px 10px;
+  font-size: 1rem;
+}
+
 /* Menu Page (old simple layout, kept for safety) */
 .menu-item {
   background-color: #333;
