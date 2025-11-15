@@ -1,5 +1,28 @@
-// API endpoint
-const API_BASE = 'http://127.0.0.1:5000';
+const API_BASE = "http://127.0.0.1:5000";
+const LOCATION_MAP = {
+  Wheaton: 1,
+  Elmhurst: 2,
+  "Oak Brook": 3,
+  "Wood Dale": 4,
+  Roselle: 5,
+  "Glendale Heights": 6,
+  Bartlett: 7,
+  "Hoffman Estates": 8,
+  Westmont: 9,
+  Darien: 10,
+  Bolingbrook: 11,
+  "Western Springs": 12
+};
+let menuItems = [];
+
+function getStoredLocation() {
+  const storedId = parseInt(localStorage.getItem("selectedLocationId"), 10);
+  const label = localStorage.getItem("selectedLocationLabel") || "Default Location";
+  return {
+    id: Number.isInteger(storedId) ? storedId : 1,
+    label
+  };
+}
 
 // =====================
 // GLOBAL CART FUNCTIONS
@@ -12,14 +35,20 @@ function saveCart(cart) {
   localStorage.setItem("cart", JSON.stringify(cart));
 }
 
-function addToCart(name, price) {
+function addToCart(id, name, price) {
+  const numericPrice = Number(price);
+  if (!Number.isFinite(numericPrice)) {
+    alert("Unable to add this item right now.");
+    return;
+  }
+
   let cart = getCart();
-  let existing = cart.find(item => item.name === name);
+  let existing = cart.find(item => item.id === id);
 
   if (existing) {
     existing.quantity++;
   } else {
-    cart.push({ name, price, quantity: 1 });
+    cart.push({ id, name, price: numericPrice, quantity: 1 });
   }
 
   saveCart(cart);
@@ -29,30 +58,27 @@ function addToCart(name, price) {
 // =====================
 // LOAD MENU FROM BACKEND
 // =====================
-async function loadMenu(location) {
+async function loadMenu(locationId = 1) {
   const container = document.getElementById("menu-container");
+  if (!container) return;
 
-  //Loading message
   container.textContent = "Loading menu...";
 
   try {
-    const response = await fetch(`${API_BASE}/api/menu/${location}`);
+    const response = await fetch(`${API_BASE}/api/menu/${locationId}`);
 
     if (!response.ok) {
-      //Backend returned a bad response (like 404 or 500)
       throw new Error(`HTTP Error: ${response.status}`);
     }
 
     const menu = await response.json();
+    menuItems = menu;
 
-    //If no menu items are found,
     if (!menu || menu.length === 0) {
       container.textContent = "No menu items available for this location.";
       return;
     }
 
-    //Show message with clear loading text and display menu items
-    container.innerHTML = "";
     displayMenuItems(menu);
   } catch (error) {
     console.error("Error loading menu:", error);
@@ -62,21 +88,65 @@ async function loadMenu(location) {
 
 function displayMenuItems(menu) {
   const container = document.getElementById("menu-container");
+  if (!container) return;
+
+  container.innerHTML = "";
 
   menu.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "menu-item";
-    // Use image from API, fallback to placeholder if not available
-    const imageUrl = item.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400';
-    div.innerHTML = `
-      <img src="${imageUrl}" alt="${item.name}" style="width: 100%; height: 200px; object-fit: cover;">
-      <h3>${item.name}</h3>
-      <p>${item.description || ''}</p>
-      <p>$${parseFloat(item.price).toFixed(2)}</p>
-      <button onclick="addToCart('${item.name}', ${item.price})">Add to Cart</button>
-    `;
-    container.appendChild(div);
+    const priceNumber = Number.parseFloat(item.price);
+    const hasValidPrice = Number.isFinite(priceNumber);
+    const priceDisplay = hasValidPrice ? `$${priceNumber.toFixed(2)}` : "Price unavailable";
+    const description = item.description || "Delicious house specialty.";
+
+    const card = document.createElement("div");
+    card.className = "menu-item";
+
+    const title = document.createElement("h3");
+    title.textContent = item.name;
+    card.appendChild(title);
+
+    if (item.category) {
+      const categoryTag = document.createElement("p");
+      categoryTag.className = "menu-item-category";
+      categoryTag.textContent = item.category;
+      card.appendChild(categoryTag);
+    }
+
+    const desc = document.createElement("p");
+    desc.className = "menu-item-description";
+    desc.textContent = description;
+    card.appendChild(desc);
+
+    const price = document.createElement("p");
+    price.className = "menu-item-price";
+    price.textContent = priceDisplay;
+    card.appendChild(price);
+
+    if (hasValidPrice) {
+      const button = document.createElement("button");
+      button.textContent = "Add to Cart";
+      button.addEventListener("click", () => addToCart(item.id, item.name, priceNumber));
+      card.appendChild(button);
+    } else {
+      const note = document.createElement("p");
+      note.className = "menu-item-note";
+      note.textContent = "Unable to add to cart";
+      card.appendChild(note);
+    }
+
+    container.appendChild(card);
   });
+}
+
+function initMenuPage() {
+  const heading = document.getElementById("menu-heading");
+  const { id: locationId, label } = getStoredLocation();
+
+  if (heading) {
+    heading.textContent = label ? `Mi Casa Menu - ${label}` : "Mi Casa Menu";
+  }
+
+  loadMenu(locationId);
 }
 
 // =====================
@@ -122,25 +192,57 @@ async function placeOrder() {
     return;
   }
 
-  const items = cart.map(i => `${i.name} (${i.quantity})`).join(", ");
+  const missingIds = cart.some(item => typeof item.id === "undefined");
+  if (missingIds) {
+    alert("Please re-add your items to the cart to continue.");
+    saveCart([]);
+    return;
+  }
 
-  await fetch("http://127.0.0.1:5000/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ customer_name: name, items })
-  });
+  const { id: locationId, label } = getStoredLocation();
+  const payload = {
+    locationId,
+    items: cart.map(item => ({ id: item.id, quantity: item.quantity }))
+  };
 
-  alert("Order placed successfully!");
-  localStorage.removeItem("cart");
-  window.location.href = "confirmation.html";
+  if (name && name !== "Guest") {
+    payload.customerName = name;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to place order");
+    }
+
+    const data = await response.json();
+
+    localStorage.removeItem("cart");
+    const msg = data.orderId
+      ? `Order #${data.orderId} placed for ${label}.`
+      : "Your order has been placed.";
+    localStorage.setItem("orderMsg", msg);
+    window.location.href = "confirmation.html";
+  } catch (error) {
+    console.error("Order error:", error);
+    alert(error.message || "Unable to place your order right now.");
+  }
 }
 
 
 // =====================
 // LOCATION SELECTION
 // =====================
-function selectLocation(location) {
-  localStorage.setItem("selectedLocation", location);
+function selectLocation(locationLabel) {
+  const locationId = LOCATION_MAP[locationLabel] || 1;
+  localStorage.setItem("selectedLocationLabel", locationLabel);
+  localStorage.setItem("selectedLocationId", locationId);
   window.location.href = "menu.html";
 }
 
@@ -151,7 +253,7 @@ function enterZip() {
     return;
   }
 
-  // Can later map ZIP codes to locations here if needed
-  localStorage.setItem("selectedLocation", zip);
+  localStorage.setItem("selectedLocationLabel", `ZIP ${zip}`);
+  localStorage.setItem("selectedLocationId", 1);
   window.location.href = "menu.html";
 }

@@ -1,28 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Byte 2 Bite - Menu</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Checkout - Byte2Bite</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-	<div class="hero">
+  <div class="hero">
     <header>
-      <h1>Mi Casa Menu</h1>
+      <h1>Checkout</h1>
     </header>
   </div>
 
-  <div id="menu-container">Loading menu...</div>
+  <main>
+    <div id="cart-items"></div>
+    <h3 id="total">Total: $0.00</h3>
 
-  <a href="checkout.html" class="cart-btn">Go to Cart</a>
+    <div class="name-field">
+      <label for="customer-name"><strong>Your Name:</strong></label>
+      <input type="text" id="customer-name" placeholder="Enter your name (optional)" />
+    </div>
+
+    <div class="checkout-btns">
+      <button onclick="placeOrder()">Place Order (Pay In-Store)</button>
+    </div>
+  </main>
 
   <script src="script.js"></script>
   <script>
-    // Load menu from Flask for a default location (e.g., "Wheaton")
-      const selected = localStorage.getItem("selectedLocation") || "Wheaton";
-      loadMenu(selected);
+    loadCart();
   </script>
 </body>
 </html>
-

@@ -1,0 +1,149 @@
+body {
+  background-color: #1e1e1e;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+body.history-page {
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+  background-color: #333;
+  color: #ffcc00;
+}
+
+#order-container {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 30px;
+  min-height: 60vh;
+}
+
+.order-card,
+.order {
+  background-color: #2d2d2d;
+  border-radius: 10px;
+  padding: 20px;
+  width: 350px;
+  text-align: left;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+  margin: 10px auto;
+}
+
+.order-card {
+  border-left: 10px solid orange;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.order-card.selected {
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.8);
+  transform: translateY(-4px);
+}
+
+.order-card h3 {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #ffb700;
+}
+
+.order-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+
+.order-card ul li {
+  margin: 5px 0;
+}
+
+.controls {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button,
+.history-btn,
+.back-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: bold;
+  color: #000;
+}
+
+.arrow-btn {
+  background-color: #ffb700;
+  font-size: 22px;
+  padding: 6px 15px;
+}
+
+.prep-btn {
+  background-color: #ffb700;
+}
+
+.done-btn {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.undo-btn {
+  background-color: #888;
+  color: #fff;
+}
+
+.history-btn {
+  background-color: #ffcc00;
+  text-decoration: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  display: inline-block;
+  margin-top: 25px;
+  transition: background 0.3s;
+}
+
+.history-btn:hover {
+  background-color: #ffb700;
+}
+
+.orders {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.order {
+  border: 2px solid #555;
+  width: 300px;
+}
+
+.order p {
+  margin: 6px 0;
+}
+
+.back-btn {
+  background-color: #ffcc00;
+  border-radius: 6px;
+  padding: 10px 20px;
+}
+
+.back-btn:hover {
+  background-color: #ffaa00;
+}

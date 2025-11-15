@@ -96,6 +96,34 @@ input:focus {
   border-radius: 10px;
 }
 
+.menu-item h3 {
+  margin: 10px 0 5px;
+  font-size: 1.1rem;
+}
+
+.menu-item-category {
+  margin: 0;
+  color: #ffcc00;
+  font-size: 0.9rem;
+}
+
+.menu-item-description {
+  font-size: 0.85rem;
+  min-height: 60px;
+  color: #ddd;
+}
+
+.menu-item-price {
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.menu-item-note {
+  font-size: 0.8rem;
+  color: #bbb;
+  margin: 0;
+}
+
 /* Cart & Checkout  */
 .cart-row {
   background: #333;
