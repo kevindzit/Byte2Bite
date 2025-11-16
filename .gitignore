@@ -11,19 +11,5 @@ __pycache__/
 # Ignore common OS files (for Mac users)
 .DS_Store
 
-# Ignore project notes and AI helper files
-project_notes_folder/
-CLAUDE.md
-read_docx.py
-.claudeignore
-.claude/
-Venv/
-
-# Google Cloud service account key - IMPORTANT: Never commit this!
+# Google Cloud service account key
 backend-api/service-account-key.json
-
-CURRENT_STATUS.md
-
-# Image management (keep private)
-update_menu_images.py
-HOW_TO_UPDATE_IMAGES.txt
