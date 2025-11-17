@@ -8,17 +8,24 @@
 </head>
 <body>
   <h1>Byte 2 Bite - Kitchen Display System</h1>
-  <div id="order-container"><p>Loading orders...</p></div>
-
-  <div class="controls">
-    <button class="arrow-btn" onclick="prevOrder()">⬅</button>
-    <button class="prep-btn" onclick="updateStatus('Preparing')">Preparing</button>
-    <button class="done-btn" onclick="updateStatus('Completed')">Complete</button>
-    <button class="undo-btn" onclick="undoLastAction()">Undo</button>
-    <button class="arrow-btn" onclick="nextOrder()">➡</button>
+  <div class="active-orders-view">
+    <div id="order-container" class="active-orders-grid"><p>Loading orders...</p></div>
   </div>
 
-  <a href="history.html" class="history-btn">View Completed Orders</a>
+  <div class="controls">
+    <div class="control-group control-left">
+      <button class="arrow-btn" onclick="prevOrder()">⬅</button>
+      <button class="arrow-btn" onclick="nextOrder()">➡</button>
+    </div>
+    <div class="control-group control-center">
+      <button class="prep-btn" onclick="updateStatus('Preparing')">Preparing</button>
+      <button class="done-btn" onclick="updateStatus('Completed')">Complete</button>
+    </div>
+    <div class="control-group control-right">
+      <button class="undo-btn" onclick="undoLastAction()">Undo</button>
+      <a href="history.html" class="history-btn">View Completed Orders</a>
+    </div>
+  </div>
 
   <script>
     let orders = [];
@@ -41,10 +48,16 @@
 
     function showOrder() {
       const container = document.getElementById("order-container");
+      if (!container) return;
+
       container.innerHTML = "";
+      container.classList.remove("empty");
 
       if (!orders || orders.length === 0) {
+        container.classList.add("empty");
         container.innerHTML = "<p>No active orders</p>";
+        const wrapper = document.querySelector(".active-orders-view");
+        if (wrapper) wrapper.scrollLeft = 0;
         return;
       }
 
@@ -77,6 +90,8 @@
 
         container.appendChild(div);
       });
+
+      ensureSelectedVisible();
     }
 
 
@@ -134,6 +149,28 @@
       } catch (err) {
         console.error(err);
         alert("Error updating order status. Check the console for details.");
+      }
+    }
+
+    function ensureSelectedVisible() {
+      const wrapper = document.querySelector(".active-orders-view");
+      const selectedCard = document.querySelector(".order-card.selected");
+      if (!wrapper || !selectedCard) return;
+
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const cardRect = selectedCard.getBoundingClientRect();
+      const padding = 20;
+
+      if (cardRect.left < wrapperRect.left + padding) {
+        wrapper.scrollBy({
+          left: cardRect.left - wrapperRect.left - padding,
+          behavior: "smooth"
+        });
+      } else if (cardRect.right > wrapperRect.right - padding) {
+        wrapper.scrollBy({
+          left: cardRect.right - wrapperRect.right + padding,
+          behavior: "smooth"
+        });
       }
     }
 
