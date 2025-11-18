@@ -55,7 +55,7 @@ pip install -r requirements.txt
 
 ### 3. Start Backend
 ```bash
-python backend-api/app.py
+python backend-api/run.py
 ```
 Backend runs at: http://127.0.0.1:5000
 
