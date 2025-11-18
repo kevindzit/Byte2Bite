@@ -107,20 +107,28 @@ def _serialize_order(o):
 
 @bp.get("/orders")
 def get_active_orders():
-    active_orders_query = (
+    # Get optional restaurant_id filter from query params
+    restaurant_id = request.args.get('restaurant_id', type=int)
+
+    query = (
         db.session.query(
             Orders,
             Restaurants.Name.label("restaurant_name"),
             func.coalesce(
                 Orders.CustomerName,
-                func.concat(Customers.FirstName, " ", Customers.LastName) 
+                func.concat(Customers.FirstName, " ", Customers.LastName)
             ).label("customer_name"),
         )
         .join(Restaurants, Orders.RestaurantID == Restaurants.RestaurantID)
         .outerjoin(Customers, Orders.CustomerID == Customers.CustomerID)
         .filter(Orders.Status.in_(["Pending", "Preparing"]))
-        .all()
     )
+
+    # Filter by restaurant if specified
+    if restaurant_id:
+        query = query.filter(Orders.RestaurantID == restaurant_id)
+
+    active_orders_query = query.all()
     orders_list = []
     for order, restaurant_name, customer_name in active_orders_query:
         items_query = (
@@ -190,14 +198,21 @@ def create_order():
 
 @bp.get("/history")
 def get_history():
+    # Get optional restaurant_id filter from query params
+    restaurant_id = request.args.get('restaurant_id', type=int)
+
     status_col = _status_col()
     pk = _pk_col()
-    orders = (
+    query = (
         Orders.query
-        .filter(db.func.trim(db.func.coalesce(status_col, "")) == "Completed")
-        .order_by(pk.desc())
-        .all()
+        .filter(status_col.in_(["Completed", "Delivered"]))
     )
+
+    # Filter by restaurant if specified
+    if restaurant_id:
+        query = query.filter(Orders.RestaurantID == restaurant_id)
+
+    orders = query.order_by(pk.desc()).all()
     return jsonify([_serialize_order(o) for o in orders])
 
 

@@ -24,6 +24,33 @@ h1 {
   margin: 0;
   background-color: #333;
   color: #ffcc00;
+  position: relative;
+}
+
+.location-selector {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  background-color: #ffcc00;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.location-selector select {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  cursor: pointer;
+  padding: 4px;
+  outline: none;
+}
+
+.location-selector select:hover {
+  color: #333;
 }
 
 .active-orders-view {

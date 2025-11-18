@@ -7,7 +7,14 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Byte 2 Bite - Kitchen Display System</h1>
+  <h1>
+    Byte 2 Bite - Kitchen Display System
+    <div class="location-selector">
+      <select id="locationSelect" onchange="changeLocation()">
+        <option value="">Loading locations...</option>
+      </select>
+    </div>
+  </h1>
   <div class="active-orders-view">
     <div id="order-container" class="active-orders-grid"><p>Loading orders...</p></div>
   </div>
@@ -31,10 +38,37 @@
     let orders = [];
     let currentIndex = 0;
     let lastAction = null;
+    let selectedLocation = localStorage.getItem('kitchenDisplayLocation') || '1';
+
+    // Load list of restaurants/locations
+    async function loadRestaurants() {
+      try {
+        const response = await fetch('http://127.0.0.1:5000/api/restaurants');
+        const restaurants = await response.json();
+
+        const select = document.getElementById('locationSelect');
+        select.innerHTML = restaurants.map(r => {
+          const locationName = r.name.replace('Mi Casa ', '');
+          return `<option value="${r.id}" ${r.id == selectedLocation ? 'selected' : ''}>${locationName}</option>`;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading restaurants:', error);
+        document.getElementById('locationSelect').innerHTML =
+          '<option value="1">Restaurant</option>';
+      }
+    }
+
+    // Handle location change
+    function changeLocation() {
+      const select = document.getElementById('locationSelect');
+      selectedLocation = select.value || '1';
+      localStorage.setItem('kitchenDisplayLocation', selectedLocation);
+      loadOrders();
+    }
 
     async function loadOrders() {
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/orders"); // NOTE: Change the API base URL if running Flask on a different server or port.
+        const res = await fetch(`http://127.0.0.1:5000/api/orders?restaurant_id=${selectedLocation}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         orders = await res.json();
         console.log("Orders received from server:", orders);
@@ -236,6 +270,7 @@ async function undoLastAction() {
 
     // Auto-refresh every 1 seconds
     setInterval(loadOrders, 1000);
+    loadRestaurants();
     loadOrders();
   </script>
 </body>

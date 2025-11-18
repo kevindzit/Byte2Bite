@@ -10,4 +10,5 @@ class MenuItems(db.Model):
     Price = db.Column(db.Numeric(10, 2), nullable=False)
     Category = db.Column(db.String(50))
     IsAvailable = db.Column(db.Boolean, default=True)
+    ImageURL = db.Column(db.String(500))
     

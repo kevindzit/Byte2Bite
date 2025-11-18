@@ -3,14 +3,20 @@ import os
 from flask import Blueprint, jsonify, current_app
 from ..models import MenuItems
 
-# Load image mappings
+# Load image mappings (fallback if DB missing images)
 IMAGES_PATH = os.path.join(os.path.dirname(__file__), "../../menu_items.json")
+JSON_DATA = {}
 
-with open(IMAGES_PATH, "r") as f:
-    JSON_DATA = json.load(f)
+try:
+    with open(IMAGES_PATH, "r") as f:
+        JSON_DATA = json.load(f)
+except FileNotFoundError:
+    JSON_DATA = {}
+except json.JSONDecodeError:
+    JSON_DATA = {}
 
-IMAGE_DATA = JSON_DATA["menu_items"]
-DEFAULT_IMAGE = JSON_DATA["default_image"]
+IMAGE_DATA = JSON_DATA.get("menu_items", {})
+DEFAULT_IMAGE = JSON_DATA.get("default_image", "Food.webp")
 
 bp = Blueprint("menu", __name__)
 
@@ -25,7 +31,7 @@ def get_menu(location_id):
         response = []
 
         for i in items:
-            image_url = IMAGE_DATA.get(i.Name, DEFAULT_IMAGE)
+            image_url = getattr(i, "ImageURL", None) or IMAGE_DATA.get(i.Name) or DEFAULT_IMAGE
 
             response.append({
                 "id": i.MenuItemID,

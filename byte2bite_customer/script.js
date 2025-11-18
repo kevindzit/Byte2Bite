@@ -30,20 +30,46 @@ async function loadMenuImages() {
     menuImageMap = await res.json();
     return menuImageMap;
   } catch (e) {
-    console.error("Could not load menu_images.json", e);
+    console.error("Could not load menu_items.json", e);
     return null;
   }
 }
 
-function getImageForItem(name) {
-  if (!menuImageMap) return "Food.webp";
+function getImageForItem(itemOrName) {
+  const mapItems = (menuImageMap && menuImageMap.menu_items) || {};
+  const defaultImg = (menuImageMap && menuImageMap.default_image) || "Food.webp";
 
-  const items = menuImageMap.menu_items;
-  const defaultImg = menuImageMap.default_image;
-
-  if (items[name]) {
-    return items[name] === "default" ? defaultImg : items[name];
+  if (itemOrName && typeof itemOrName === "object") {
+    if (itemOrName.image) {
+      return itemOrName.image;
+    }
+    if (itemOrName.name) {
+      const match = menuItems.find(i => i.name === itemOrName.name);
+      if (match && match.image) {
+        return match.image;
+      }
+      if (mapItems[itemOrName.name]) {
+        return mapItems[itemOrName.name] === "default"
+          ? defaultImg
+          : mapItems[itemOrName.name];
+      }
+      return defaultImg;
+    }
   }
+
+  if (typeof itemOrName === "string" && mapItems[itemOrName]) {
+    return mapItems[itemOrName] === "default"
+      ? defaultImg
+      : mapItems[itemOrName];
+  }
+
+  if (typeof itemOrName === "string") {
+    const match = menuItems.find(i => i.name === itemOrName);
+    if (match && match.image) {
+      return match.image;
+    }
+  }
+
   return defaultImg;
 }
 
@@ -122,7 +148,7 @@ function displayMenuItems(menu) {
     const desc = item.description || "Freshly prepared.";
     const qty = cart.find(i => i.id === item.id)?.quantity || 0;
 
-    const imageSrc = getImageForItem(item.name);
+    const imageSrc = getImageForItem(item);
 
     const row = document.createElement("div");
     row.className = "menu-row";
@@ -260,7 +286,7 @@ async function loadCart() {
     const row = document.createElement("div");
     row.className = "cart-row";
 
-    const imageSrc = getImageForItem(item.name);
+    const imageSrc = getImageForItem(item);
 
     row.innerHTML = `
       <img class="cart-item-image" src="${imageSrc}" alt="${item.name}" />

@@ -87,6 +87,32 @@
             text-shadow: 2px 2px 4px rgba(255,255,255,0.3);
         }
 
+        .location-selector {
+            position: absolute;
+            top: 15px;
+            right: 180px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 2px solid #000;
+        }
+
+        .location-selector select {
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            padding: 4px;
+            outline: none;
+        }
+
+        .location-selector select:hover {
+            color: #000;
+        }
+
         .hamburger {
             position: absolute;
             left: 20px;
@@ -655,6 +681,107 @@
         .menu-overlay.active {
             display: block;
         }
+
+        /* Orders Section Styles */
+        .orders-section {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .orders-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .order-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .order-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .order-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-completed {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-ready {
+            background: #FF9800;
+            color: white;
+        }
+
+        .order-details {
+            margin: 15px 0;
+        }
+
+        .order-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            color: #666;
+        }
+
+        .order-items {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .order-total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #ddd;
+        }
+
+        .mark-delivered-btn {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .mark-delivered-btn:hover {
+            background: #45a049;
+        }
+
+        .refresh-btn:hover {
+            background: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -675,6 +802,11 @@
             <span></span>
         </div>
         <h1>Mi Casa Restaurant</h1>
+        <div class="location-selector">
+            <select id="locationSelect" onchange="changeLocation()">
+                <option value="">Loading locations...</option>
+            </select>
+        </div>
         <div class="cart-icon" onclick="showTab('payment')">
             <div class="cart-text">Cart</div>
             <span class="cart-badge" id="cartBadge">0</span>
@@ -686,6 +818,8 @@
         <button class="tab-btn active" onclick="showTab('order')">Order</button>
         <button class="tab-btn" onclick="showTab('account')">Account</button>
         <button class="tab-btn" onclick="showTab('payment')">Payment</button>
+        <button class="tab-btn" onclick="showTab('current-orders')">Current Orders</button>
+        <button class="tab-btn" onclick="showTab('past-orders')">Past Orders</button>
     </div>
 
     <div id="order-tab" class="tab-content active">
@@ -733,14 +867,10 @@
                 <div id="rewards-section" style="display:none; background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0;">
                     <div style="font-weight: bold; margin-bottom: 10px;">Customer Rewards</div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>Available Points: <span id="availablePoints">0</span></span>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <label>Use Points:</label>
-                            <input type="number" id="pointsToUse" value="0" min="0" style="width: 100px; padding: 5px;">
-                            <button onclick="applyRewards()" style="padding: 5px 15px;">Apply</button>
-                        </div>
+                        <span>Available: <span id="availablePoints">0</span> pts (<span id="availablePointsDollars">$0.00</span>)</span>
+                        <button id="applyRewardsBtn" onclick="toggleRewards()" style="padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Apply All</button>
                     </div>
-                    <div style="margin-top: 10px; color: #4CAF50;">Discount: -$<span id="rewardsDiscount">0.00</span></div>
+                    <div id="rewardsDiscountLine" style="margin-top: 10px; color: #4CAF50; display: none;">Discount: -$<span id="rewardsDiscount">0.00</span></div>
                 </div>
                 <div class="payment-row" style="font-weight: bold; background-color: #e8e8e8;">
                     <span>Final Total: $</span>
@@ -775,11 +905,37 @@
         </div>
     </div>
 
+    <div id="current-orders-tab" class="tab-content">
+        <div class="orders-section">
+            <h2 style="text-align: center; margin: 20px 0; color: #333;">Current Orders - Ready for Pickup</h2>
+            <div id="current-orders-list" class="orders-list">
+                <p style="text-align: center; color: #666; padding: 40px;">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="past-orders-tab" class="tab-content">
+        <div class="orders-section">
+            <h2 style="text-align: center; margin: 20px 0; color: #333;">Past Orders - Completed</h2>
+            <div style="text-align: center; margin: 20px;">
+                <button class="refresh-btn" onclick="loadPastOrders()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Refresh</button>
+                <button class="sort-btn" onclick="togglePastOrdersSort()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Sort by Date <span id="sort-arrow">↓</span>
+                </button>
+            </div>
+            <div id="past-orders-list" class="orders-list">
+                <p style="text-align: center; color: #666; padding: 40px;">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
     <div class="menu-drawer" id="menuDrawer">
         <h3>Menu</h3>
-        <div class="menu-drawer-item" onclick="showTab('order'); toggleMenu();">Orders</div>
+        <div class="menu-drawer-item" onclick="showTab('order'); toggleMenu();">New Order</div>
         <div class="menu-drawer-item" onclick="showTab('account'); toggleMenu();">Account</div>
         <div class="menu-drawer-item" onclick="showTab('payment'); toggleMenu();">Payment</div>
+        <div class="menu-drawer-item" onclick="showTab('current-orders'); toggleMenu();">Current Orders</div>
+        <div class="menu-drawer-item" onclick="showTab('past-orders'); toggleMenu();">Past Orders</div>
         <div class="menu-drawer-item" id="adminLink" style="display:none;" onclick="window.location.href='admin.html';">Admin Dashboard</div>
         <div class="menu-drawer-item" onclick="logoutStaff(); toggleMenu();">Sign Out</div>
     </div>
@@ -804,7 +960,7 @@
         let paymentMethod = 'Cash';
         let amountEntered = '0';
         let staffSession = null;
-        let appliedRewardsPoints = 0;
+        let rewardsApplied = false;
 
         function loadStaffSession() {
             staffSession = JSON.parse(localStorage.getItem('staffSession') || 'null');
@@ -872,6 +1028,40 @@
             return true;
         }
 
+        // Load list of restaurants/locations
+        async function loadRestaurants() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/restaurants');
+                const restaurants = await response.json();
+
+                const select = document.getElementById('locationSelect');
+                select.innerHTML = restaurants.map(r => {
+                    const locationName = r.name.replace('Mi Casa ', '');
+                    return `<option value="${r.id}" ${r.id === selectedRestaurant ? 'selected' : ''}>${locationName}</option>`;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading restaurants:', error);
+                document.getElementById('locationSelect').innerHTML =
+                    '<option value="1">Restaurant</option>';
+            }
+        }
+
+        // Handle location change
+        function changeLocation() {
+            const select = document.getElementById('locationSelect');
+            selectedRestaurant = parseInt(select.value) || 1;
+
+            // Reload menu for new location
+            loadMenu();
+
+            // Reload orders if on those tabs
+            if (currentTab === 'current-orders') {
+                loadCurrentOrders();
+            } else if (currentTab === 'past-orders') {
+                loadPastOrders();
+            }
+        }
+
         // Initialize on load
         window.onload = function() {
             // Check if coming from customer portal (for testing - always require fresh login)
@@ -889,8 +1079,16 @@
             }
 
             loadStaffSession();
+            loadRestaurants();
             loadMenu();
         };
+
+        // Auto-refresh interval for order tabs
+        let refreshInterval = null;
+
+        // Past orders sort direction (true = newest first, false = oldest first)
+        let pastOrdersSortNewestFirst = true;
+        let cachedPastOrders = [];
 
         // Tab navigation
         function showTab(tabName) {
@@ -905,8 +1103,22 @@
             document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
             currentTab = tabName;
 
+            // Clear any existing refresh interval
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+
             if (tabName === 'payment') {
                 updatePaymentDisplay();
+            } else if (tabName === 'current-orders') {
+                loadCurrentOrders();
+                // Auto-refresh every 5 seconds
+                refreshInterval = setInterval(loadCurrentOrders, 5000);
+            } else if (tabName === 'past-orders') {
+                loadPastOrders();
+                // Auto-refresh every 5 seconds
+                refreshInterval = setInterval(loadPastOrders, 5000);
             }
         }
 
@@ -936,7 +1148,7 @@
         // ============ //
         // Image config //
         // ============ //
-        const IMAGE_JSON_PATH = "../menu_images.json";  
+        const IMAGE_JSON_PATH = "../menu_items.json";  
         const IMAGE_BASE = "..";                       
         let menuImageMap = null;
 
@@ -960,25 +1172,48 @@
                 menuImageMap = await res.json();
                 return menuImageMap;
             } catch (e) {
-                console.error("Could not load menu_images.json", e);
+                console.error("Could not load menu_items.json", e);
                 menuImageMap = null;
                 return null;
             }
         }
 
-        function getImageForItem(name) {
-            if (!menuImageMap) {
-                return buildImagePath("Food.webp");
+        function getImageForItem(itemOrName) {
+            const defaultImg = buildImagePath(
+                (menuImageMap && menuImageMap.default_image) || "Food.webp"
+            );
+            const items = (menuImageMap && menuImageMap.menu_items) || {};
+
+            if (itemOrName && typeof itemOrName === "object") {
+                if (itemOrName.image) {
+                    return buildImagePath(itemOrName.image);
+                }
+
+                if (itemOrName.name) {
+                    if (items[itemOrName.name]) {
+                        return items[itemOrName.name] === "default"
+                            ? defaultImg
+                            : buildImagePath(items[itemOrName.name]);
+                    }
+
+                    const match = menuItems.find(i => i.name === itemOrName.name);
+                    if (match && match.image) {
+                        return buildImagePath(match.image);
+                    }
+                }
             }
 
-            const items = menuImageMap.menu_items || {};
-            const defaultImg = buildImagePath(menuImageMap.default_image || "Food.webp");
+            if (typeof itemOrName === "string" && items[itemOrName]) {
+                return items[itemOrName] === "default"
+                    ? defaultImg
+                    : buildImagePath(items[itemOrName]);
+            }
 
-            if (items[name]) {
-                if (items[name] === "default") {
-                    return defaultImg;
+            if (typeof itemOrName === "string") {
+                const match = menuItems.find(i => i.name === itemOrName);
+                if (match && match.image) {
+                    return buildImagePath(match.image);
                 }
-                return buildImagePath(items[name]); 
             }
 
             return defaultImg;
@@ -1002,7 +1237,7 @@
                         <div class="quantity-checkbox">${quantity || 0}</div>
                         <button class="quantity-btn" onclick="increaseQuantity(${item.id})">+</button>
                     </div>
-                    <img class="menu-item-image" src="${getImageForItem(item.name)}" alt="${item.name}">
+                    <img class="menu-item-image" src="${getImageForItem(item)}" alt="${item.name}">
                     <div class="menu-item-details">
                         <div class="menu-item-name">${item.name}</div>
                         <div class="menu-item-description">
@@ -1155,22 +1390,22 @@
             updatePaymentDisplay();
         }
 
-        function applyRewards() {
-            const pointsInput = document.getElementById('pointsToUse');
-            const points = parseInt(pointsInput.value) || 0;
-            const maxPoints = selectedCustomer?.rewardsPoints || 0;
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const maxUsablePoints = Math.min(maxPoints, Math.floor(total * 100));
-
-            if (points > maxUsablePoints) {
-                alert(`You can only use up to ${maxUsablePoints} points for this order`);
-                pointsInput.value = maxUsablePoints;
-                appliedRewardsPoints = maxUsablePoints;
-            } else {
-                appliedRewardsPoints = points;
-            }
-
+        function toggleRewards() {
+            rewardsApplied = !rewardsApplied;
             updatePaymentDisplay();
+
+            const btn = document.getElementById('applyRewardsBtn');
+            const discountLine = document.getElementById('rewardsDiscountLine');
+
+            if (rewardsApplied) {
+                btn.textContent = 'Remove';
+                btn.style.background = '#f44336';
+                discountLine.style.display = 'block';
+            } else {
+                btn.textContent = 'Apply All';
+                btn.style.background = '#4CAF50';
+                discountLine.style.display = 'none';
+            }
         }
 
         function updatePaymentDisplay() {
@@ -1181,15 +1416,23 @@
             const rewardsSection = document.getElementById('rewards-section');
             if (selectedCustomer?.rewardsPoints > 0) {
                 rewardsSection.style.display = 'block';
-                document.getElementById('availablePoints').textContent = selectedCustomer.rewardsPoints;
-                const pointsInput = document.getElementById('pointsToUse');
-                pointsInput.max = Math.min(selectedCustomer.rewardsPoints, Math.floor(total * 100));
+                const availablePoints = selectedCustomer.rewardsPoints;
+                const availableDollars = (availablePoints / 100).toFixed(2);
+                document.getElementById('availablePoints').textContent = availablePoints;
+                document.getElementById('availablePointsDollars').textContent = `$${availableDollars}`;
             } else {
                 rewardsSection.style.display = 'none';
-                appliedRewardsPoints = 0;
+                rewardsApplied = false;
             }
 
-            const discount = appliedRewardsPoints / 100;
+            // Calculate discount based on whether rewards are applied
+            let discount = 0;
+            if (rewardsApplied && selectedCustomer?.rewardsPoints > 0) {
+                // Automatically use all available points up to the order total
+                const maxUsablePoints = Math.min(selectedCustomer.rewardsPoints, Math.floor(total * 100));
+                discount = maxUsablePoints / 100;
+            }
+
             const finalTotal = Math.max(total - discount, 0);
 
             document.getElementById('rewardsDiscount').textContent = discount.toFixed(2);
@@ -1210,7 +1453,14 @@
             }
 
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const discount = appliedRewardsPoints / 100;
+
+            // Calculate actual points being redeemed
+            let pointsToRedeem = 0;
+            if (rewardsApplied && selectedCustomer?.rewardsPoints > 0) {
+                pointsToRedeem = Math.min(selectedCustomer.rewardsPoints, Math.floor(total * 100));
+            }
+
+            const discount = pointsToRedeem / 100;
             const finalTotal = Math.max(total - discount, 0);
             const amount = parseFloat(amountEntered) || 0;
 
@@ -1233,7 +1483,7 @@
                     id: item.id,
                     quantity: item.quantity
                 })),
-                pointsToRedeem: appliedRewardsPoints || 0
+                pointsToRedeem: pointsToRedeem
             };
 
             try {
@@ -1267,7 +1517,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             payment_intent_id: data.payment_intent_id,
-                            points_redeemed: appliedRewardsPoints || 0
+                            points_redeemed: pointsToRedeem
                         })
                     });
 
@@ -1312,17 +1562,215 @@
             selectedCustomer = null;
             amountEntered = '0';
             paymentMethod = 'Cash';
-            appliedRewardsPoints = 0;
+            rewardsApplied = false;
 
             document.getElementById('phoneInput').value = '';
             document.getElementById('guestName').value = '';
             document.getElementById('customerList').innerHTML = '';
-            document.getElementById('pointsToUse').value = '0';
+
+            // Reset rewards button appearance
+            const btn = document.getElementById('applyRewardsBtn');
+            const discountLine = document.getElementById('rewardsDiscountLine');
+            if (btn) {
+                btn.textContent = 'Apply All';
+                btn.style.background = '#4CAF50';
+            }
+            if (discountLine) {
+                discountLine.style.display = 'none';
+            }
 
             document.getElementById('confirmationModal').classList.remove('active');
             updateCart();
             showTab('order');
             displayMenuItems(menuItems);
+        }
+
+        // Load current orders (all active orders: pending, preparing, and completed)
+        async function loadCurrentOrders() {
+            try {
+                // Fetch active orders (Pending, Preparing) - filtered by location
+                const activeResponse = await fetch(`http://127.0.0.1:5000/api/orders?restaurant_id=${selectedRestaurant}`);
+                const activeOrders = await activeResponse.json();
+
+                // Fetch completed orders - filtered by location
+                const historyResponse = await fetch(`http://127.0.0.1:5000/api/history?restaurant_id=${selectedRestaurant}`);
+                const historyOrders = await historyResponse.json();
+
+                // Filter history to only get Completed (exclude Delivered)
+                const completedOrders = historyOrders.filter(order =>
+                    order.status && order.status.toLowerCase() === 'completed'
+                );
+
+                // Combine all current orders
+                const allCurrentOrders = [...activeOrders, ...completedOrders];
+
+                // Sort: Completed at top, then Preparing, then Pending
+                const statusOrder = { 'completed': 0, 'preparing': 1, 'pending': 2 };
+                allCurrentOrders.sort((a, b) => {
+                    const statusA = (a.status || '').toLowerCase();
+                    const statusB = (b.status || '').toLowerCase();
+                    return (statusOrder[statusA] || 999) - (statusOrder[statusB] || 999);
+                });
+
+                displayCurrentOrders(allCurrentOrders);
+            } catch (error) {
+                console.error('Error loading current orders:', error);
+                document.getElementById('current-orders-list').innerHTML =
+                    '<p style="text-align: center; color: #d32f2f; padding: 40px;">Error loading orders</p>';
+            }
+        }
+
+        function displayCurrentOrders(orders) {
+            const container = document.getElementById('current-orders-list');
+
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No current orders</p>';
+                return;
+            }
+
+            container.innerHTML = orders.map(order => {
+                const status = (order.status || 'Unknown').toLowerCase();
+                const statusDisplay = order.status || 'Unknown';
+                const isCompleted = status === 'completed';
+
+                // Status badge color
+                let statusColor = '#666';
+                if (status === 'completed') statusColor = '#4CAF50';
+                else if (status === 'preparing') statusColor = '#FF9800';
+                else if (status === 'pending') statusColor = '#2196F3';
+
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="order-number">Order #${order.id || order.orderId}</div>
+                            ${order.created_at ? `<div class="order-time">${formatOrderTime(order.created_at)}</div>` : ''}
+                        </div>
+                        <div class="order-customer">
+                            <strong>Customer:</strong> ${order.customer_name || 'Guest'}
+                        </div>
+                        <div class="order-items">
+                            <strong>Items:</strong> ${order.items || 'No items'}
+                        </div>
+                        <div class="order-status" style="margin-top: 10px; color: ${statusColor}; font-weight: 500;">
+                            Status: ${statusDisplay}
+                        </div>
+                        ${isCompleted ? `
+                            <button class="mark-delivered-btn" onclick="markOrderDelivered(${order.id || order.orderId})">
+                                Mark as Complete
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Load past orders (historical delivered orders)
+        async function loadPastOrders() {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/api/history?restaurant_id=${selectedRestaurant}`);
+                const orders = await response.json();
+
+                // Filter for orders that have been delivered
+                const pastOrders = orders.filter(order =>
+                    order.status && order.status.toLowerCase() === 'delivered'
+                );
+
+                // Cache the orders
+                cachedPastOrders = pastOrders;
+
+                // Sort and display
+                sortAndDisplayPastOrders();
+            } catch (error) {
+                console.error('Error loading past orders:', error);
+                document.getElementById('past-orders-list').innerHTML =
+                    '<p style="text-align: center; color: #d32f2f; padding: 40px;">Error loading orders</p>';
+            }
+        }
+
+        function sortAndDisplayPastOrders() {
+            if (!cachedPastOrders || cachedPastOrders.length === 0) {
+                document.getElementById('past-orders-list').innerHTML =
+                    '<p style="text-align: center; color: #666; padding: 40px;">No past orders</p>';
+                return;
+            }
+
+            // Sort by date
+            const sorted = [...cachedPastOrders].sort((a, b) => {
+                const dateA = new Date(a.created_at);
+                const dateB = new Date(b.created_at);
+                return pastOrdersSortNewestFirst ? dateB - dateA : dateA - dateB;
+            });
+
+            displayPastOrders(sorted);
+        }
+
+        function displayPastOrders(orders) {
+            const container = document.getElementById('past-orders-list');
+
+            container.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-number">Order #${order.id}</div>
+                        <div class="order-time">${formatOrderTime(order.created_at)}</div>
+                    </div>
+                    <div class="order-customer">
+                        <strong>Customer:</strong> ${order.customer_name || 'Guest'}
+                    </div>
+                    <div class="order-items">
+                        <strong>Items:</strong> ${order.items || 'No items'}
+                    </div>
+                    <div class="order-status" style="margin-top: 10px; color: #4CAF50; font-weight: 500;">
+                        ✓ Completed
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Toggle sort direction for past orders
+        function togglePastOrdersSort() {
+            pastOrdersSortNewestFirst = !pastOrdersSortNewestFirst;
+            const arrow = document.getElementById('sort-arrow');
+            arrow.textContent = pastOrdersSortNewestFirst ? '↓' : '↑';
+            sortAndDisplayPastOrders();
+        }
+
+        // Mark order as delivered
+        async function markOrderDelivered(orderId) {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/api/orders/${orderId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'Delivered' })
+                });
+
+                if (response.ok) {
+                    loadCurrentOrders();
+                } else {
+                    alert('Error marking order as delivered');
+                }
+            } catch (error) {
+                console.error('Error marking order as delivered:', error);
+                alert('Error marking order as delivered');
+            }
+        }
+
+        // Format order time
+        function formatOrderTime(timestamp) {
+            if (!timestamp) return 'Unknown time';
+
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+
+            if (diffMins < 60) {
+                return `${diffMins} min ago`;
+            } else if (diffMins < 1440) {
+                const hours = Math.floor(diffMins / 60);
+                return `${hours}h ago`;
+            } else {
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
         }
     </script>
 </body>

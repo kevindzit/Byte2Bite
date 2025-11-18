@@ -63,6 +63,7 @@ def search_customer():
         'lastName': customer.LastName,
         'email': customer.Email,
         'phoneNumber': customer.PhoneNumber,
+        'rewardsPoints': customer.RewardsPoints or 0,
     })
 
 
