@@ -13,9 +13,6 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
     'service-account-key.json'
 )
 
-print("Using credentials from:", os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-
-
 client = storage.Client()   
 
 # Initialize flask object
