@@ -19,9 +19,9 @@ let menuImageMap = null;
 
 
 // =====================
-// LOAD menu_images.json
+// LOAD menu_items.json
 // =====================
-const IMAGE_JSON_PATH = "../menu_images.json"
+const IMAGE_JSON_PATH = "../menu_items.json"
 async function loadMenuImages() {
   if (menuImageMap) return menuImageMap;
 
