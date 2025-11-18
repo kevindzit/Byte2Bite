@@ -1,4 +1,10 @@
 import os
+from google.cloud import storage
+
+
+# ********CHANGE FILE PATH TO JSON FILE!**********
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join("C:\\Users\\chris\\Documents\\School\\COD\\2025Fall\\Capstone\\carbide-ego-476119-a7-737c5fbfffb9.json")
+
 
 
 class Config:

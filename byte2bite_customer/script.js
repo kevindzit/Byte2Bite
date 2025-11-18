@@ -1,3 +1,53 @@
+const API_BASE = "http://127.0.0.1:5000";
+const LOCATION_MAP = {
+  Wheaton: 1,
+  Elmhurst: 2,
+  "Oak Brook": 3,
+  "Wood Dale": 4,
+  Roselle: 5,
+  "Glendale Heights": 6,
+  Bartlett: 7,
+  "Hoffman Estates": 8,
+  Westmont: 9,
+  Darien: 10,
+  Bolingbrook: 11,
+  "Western Springs": 12
+};
+
+let menuItems = [];
+let menuImageMap = null;   
+
+
+// =====================
+// LOAD menu_images.json
+// =====================
+const IMAGE_JSON_PATH = "../menu_images.json"
+async function loadMenuImages() {
+  if (menuImageMap) return menuImageMap;
+
+  try {
+    const res = await fetch(IMAGE_JSON_PATH);
+    menuImageMap = await res.json();
+    return menuImageMap;
+  } catch (e) {
+    console.error("Could not load menu_images.json", e);
+    return null;
+  }
+}
+
+function getImageForItem(name) {
+  if (!menuImageMap) return "Food.webp";
+
+  const items = menuImageMap.menu_items;
+  const defaultImg = menuImageMap.default_image;
+
+  if (items[name]) {
+    return items[name] === "default" ? defaultImg : items[name];
+  }
+  return defaultImg;
+}
+
+
 // =====================
 // GLOBAL CART FUNCTIONS
 // =====================
@@ -9,97 +59,255 @@ function saveCart(cart) {
   localStorage.setItem("cart", JSON.stringify(cart));
 }
 
-function addToCart(name, price) {
-  let cart = getCart();
-  let existing = cart.find(item => item.name === name);
+function updateCartCount() {
+  const badge = document.getElementById("cartCount");
+  if (!badge) return;
 
-  if (existing) {
-    existing.quantity++;
+  const cart = getCart();
+  const total = cart.reduce((s, i) => s + i.quantity, 0);
+  badge.textContent = total;
+}
+
+function setItemQuantity(id, name, price, quantity) {
+  let cart = getCart();
+  const existing = cart.find(i => i.id === id);
+
+  if (quantity <= 0) {
+    cart = cart.filter(i => i.id !== id);
+  } else if (existing) {
+    existing.quantity = quantity;
   } else {
-    cart.push({ name, price, quantity: 1 });
+    cart.push({ id, name, price, quantity });
   }
 
   saveCart(cart);
-  alert(`${name} added to cart!`);
+  updateCartCount();
+  displayMenuItems(menuItems); 
 }
 
-// =====================
-// LOAD MENU FROM BACKEND
-// =====================
-async function loadMenu(location) {
-  const container = document.getElementById("menu-container");
 
-  //Loading message
+// =====================
+// LOAD MENU
+// =====================
+async function loadMenu(locationId = 1) {
+  const container = document.getElementById("menu-container");
   container.textContent = "Loading menu...";
 
   try {
-    const response = await fetch(`${API_BASE}/api/menu/${location}`);
+    await loadMenuImages();
 
-    if (!response.ok) {
-      //Backend returned a bad response (like 404 or 500)
-      throw new Error(`HTTP Error: ${response.status}`);
-    }
-
+    const response = await fetch(`${API_BASE}/api/menu/${locationId}`);
     const menu = await response.json();
 
-    //If no menu items are found,
-    if (!menu || menu.length === 0) {
-      container.textContent = "No menu items available for this location.";
-      return;
-    }
-
-    //Show message with clear loading text and display menu items
-    container.innerHTML = "";
+    menuItems = menu;
     displayMenuItems(menu);
-  } catch (error) {
-    console.error("Error loading menu:", error);
-    container.textContent = "⚠️ Unable to load the menu. Please try again later.";
+  } catch (e) {
+    console.error(e);
+    container.textContent = "Unable to load menu.";
   }
 }
 
-  menu.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "menu-item";
-    div.innerHTML = `
-      <img src="${item.image}" alt="${item.name}">
-      <h3>${item.name}</h3>
-      <p>$${item.price.toFixed(2)}</p>
-      <button onclick="addToCart('${item.name}', ${item.price})">Add to Cart</button>
-    `;
-    container.appendChild(div);
-  });
 
 // =====================
-// CHECKOUT PAGE SUPPORT
+// MENU RENDERING (with quantity)
 // =====================
-function loadCart() {
+function displayMenuItems(menu) {
+  const container = document.getElementById("menu-container");
+  container.innerHTML = "";
+
+  const cart = getCart();
+
+  menu.forEach(item => {
+    const price = Number(item.price);
+    const desc = item.description || "Freshly prepared.";
+    const qty = cart.find(i => i.id === item.id)?.quantity || 0;
+
+    const imageSrc = getImageForItem(item.name);
+
+    const row = document.createElement("div");
+    row.className = "menu-row";
+
+    row.innerHTML = `
+      <img class="menu-row-image" src="${imageSrc}" alt="${item.name}" />
+
+      <div class="menu-row-text">
+        <div class="menu-row-name">${item.name}</div>
+        <div class="menu-row-desc-label">Description</div>
+        <div class="menu-row-desc">${desc}</div>
+      </div>
+
+      <div class="menu-row-right">
+        <div class="menu-row-price">$${price.toFixed(2)}</div>
+
+        <div class="qty-controls">
+          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="minus">−</button>
+
+          <input class="qty-input" type="text" value="${qty}" maxlength="2"
+                 data-id="${item.id}" data-name="${item.name}" data-price="${price}" />
+
+          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="plus">+</button>
+        </div>
+
+        <button class="menu-row-add-btn add-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}"
+          style="display:${qty > 0 ? "none" : "block"};">
+          Add
+        </button>
+      </div>
+    `;
+
+    container.appendChild(row);
+  });
+
+  attachQuantityControls();
+}
+
+
+// =====================
+// QUANTITY CONTROL HANDLER
+// =====================
+function attachQuantityControls() {
+  // + / - buttons
+  document.querySelectorAll(".qty-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.id);
+      const name = btn.dataset.name;
+      const price = Number(btn.dataset.price);
+      const action = btn.dataset.action;
+
+      let cart = getCart();
+      let existing = cart.find(i => i.id === id);
+      let qty = existing ? existing.quantity : 0;
+
+      if (action === "plus") qty++;
+      if (action === "minus") qty--;
+
+      setItemQuantity(id, name, price, qty);
+    });
+  });
+
+  // Input box for typing
+  document.querySelectorAll(".qty-input").forEach(input => {
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "").slice(0, 2);
+    });
+
+    input.addEventListener("change", () => {
+      const id = Number(input.dataset.id);
+      const name = input.dataset.name;
+      const price = Number(input.dataset.price);
+
+      const qty = Number(input.value) || 0;
+      setItemQuantity(id, name, price, qty);
+    });
+  });
+
+  // “Add” button
+  document.querySelectorAll(".add-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.id);
+      const name = btn.dataset.name;
+      const price = Number(btn.dataset.price);
+
+      setItemQuantity(id, name, price, 1);
+    });
+  });
+}
+
+
+// =====================
+// CHECKOUT
+// =====================
+async function loadCart() {
+  await loadMenuImages();
+
   const cart = getCart();
   const container = document.getElementById("cart-items");
   const totalEl = document.getElementById("total");
-  container.innerHTML = "";
 
+  container.innerHTML = "";
   let total = 0;
 
   cart.forEach((item, index) => {
     total += item.price * item.quantity;
+
     const row = document.createElement("div");
     row.className = "cart-row";
+
+    const imageSrc = getImageForItem(item.name);
+
     row.innerHTML = `
-      <p>${item.name} - $${item.price.toFixed(2)} x ${item.quantity}</p>
-      <button onclick="removeItem(${index})">Remove</button>
+      <img class="cart-item-image" src="${imageSrc}" alt="${item.name}" />
+
+      <div class="cart-item-left">
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-price">$${item.price.toFixed(2)}</div>
+      </div>
+
+      <div class="cart-item-controls">
+        <button class="qty-btn" data-index="${index}" data-action="minus">−</button>
+
+        <input
+          class="qty-input cart-qty-input"
+          type="text"
+          value="${item.quantity}"
+          maxlength="2"
+          data-index="${index}"
+        />
+
+        <button class="qty-btn" data-index="${index}" data-action="plus">+</button>
+      </div>
+
+      <button class="remove-btn" onclick="removeItem(${index})">Remove</button>
     `;
+
     container.appendChild(row);
   });
 
   totalEl.textContent = `Total: $${total.toFixed(2)}`;
+
+  document.querySelectorAll(".qty-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.dataset.index);
+      const action = btn.dataset.action;
+
+      let cart = getCart();
+      let qty = cart[index].quantity;
+
+      if (action === "plus") qty++;
+      if (action === "minus") qty--;
+
+      updateCartQuantity(index, qty);
+    });
+  });
+
+  document.querySelectorAll(".cart-qty-input").forEach(input => {
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "").slice(0, 2);
+    });
+
+    input.addEventListener("change", () => {
+      const index = Number(input.dataset.index);
+      const qty = Number(input.value) || 0;
+      updateCartQuantity(index, qty);
+    });
+  });
 }
 
-function removeItem(index) {
+
+function updateCartQuantity(index, qty) {
   let cart = getCart();
-  cart.splice(index, 1);
+
+  if (qty <= 0) {
+    cart.splice(index, 1);
+  } else {
+    cart[index].quantity = qty;
+  }
+
   saveCart(cart);
-  loadCart();
+  updateCartCount();
+  loadCart();  
 }
+
 
 // =====================
 // PLACE ORDER
@@ -112,36 +320,97 @@ async function placeOrder() {
     return;
   }
 
-  const items = cart.map(i => `${i.name} (${i.quantity})`).join(", ");
+  const { id: locationId, label } = getStoredLocation();
 
-  await fetch("http://127.0.0.1:5000/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ customer_name: name, items })
-  });
+  const payload = {
+    locationId,
+    items: cart.map(i => ({
+      id: i.id,
+      quantity: i.quantity
+    })),
+    customerName: name
+  };
 
-  alert("Order placed successfully!");
-  localStorage.removeItem("cart");
-  window.location.href = "confirmation.html";
+  console.log("Placing order with payload:", payload);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await res.text(); 
+    console.log("Order response status:", res.status);
+    console.log("Order response body:", text);
+
+    if (!res.ok) {
+      alert(`Order failed (${res.status}). Check backend log for details.`);
+      return;
+    }
+
+    const data = text ? JSON.parse(text) : {};
+
+    localStorage.removeItem("cart");
+    const msg = data.orderId
+      ? `Order #${data.orderId} placed for ${label}.`
+      : "Your order has been placed.";
+    localStorage.setItem("orderMsg", msg);
+
+    window.location.href = "confirmation.html";
+  } catch (err) {
+    console.error("Network/JS error placing order:", err);
+    alert("Unable to place order. Is the API server running?");
+  }
 }
 
 
 // =====================
-// LOCATION SELECTION
+// LOCATION
 // =====================
-function selectLocation(location) {
-  localStorage.setItem("selectedLocation", location);
+function getStoredLocation() {
+  const id = Number(localStorage.getItem("selectedLocationId")) || 1;
+  let label = localStorage.getItem("selectedLocationLabel");
+
+  if (!label) {
+    for (const [name, value] of Object.entries(LOCATION_MAP)) {
+      if (value === id) {
+        label = name;
+        break;
+      }
+    }
+  }
+
+  if (!label) {
+    label = "Mi Casa";
+  }
+
+  return { id, label };
+}
+function selectLocation(label) {
+  const id = LOCATION_MAP[label] || 1;
+  localStorage.setItem("selectedLocationLabel", label);
+  localStorage.setItem("selectedLocationId", id);
   window.location.href = "menu.html";
 }
 
 function enterZip() {
   const zip = document.getElementById("zip").value.trim();
-  if (zip === "") {
-    alert("Please enter a ZIP code!");
-    return;
-  }
+  if (!zip) return alert("Enter ZIP");
 
-  // Can later map ZIP codes to locations here if needed
-  localStorage.setItem("selectedLocation", zip);
+  localStorage.setItem("selectedLocationLabel", `ZIP ${zip}`);
+  localStorage.setItem("selectedLocationId", 1);
   window.location.href = "menu.html";
+}
+
+// =====================
+// MENU INIT
+// =====================
+function initMenuPage() {
+  const heading = document.getElementById("menu-heading");
+  const { id, label } = getStoredLocation();
+  heading.textContent = `${label} Menu`;
+
+  loadMenu(id);
+  updateCartCount();
 }

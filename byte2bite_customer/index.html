@@ -15,6 +15,11 @@
 
   <main>
     <h2>Select a Location</h2>
+    <p>or enter ZIP code:</p>
+    <input type="text" id="zip" placeholder="Enter ZIP code" />
+    <button onclick="enterZip()">Continue</button>
+    <br><br><br><br>
+    
     <div class="locations">
       <button onclick="selectLocation('Wheaton')">Wheaton</button>
       <button onclick="selectLocation('Elmhurst')">Elmhurst</button>
@@ -29,9 +34,10 @@
       <button onclick="selectLocation('Bolingbrook')">Bolingbrook</button>
       <button onclick="selectLocation('Western Springs')">Western Springs</button>
     </div>
-    <p>or enter ZIP code:</p>
-    <input type="text" id="zip" placeholder="Enter ZIP code" />
-    <button onclick="enterZip()">Continue</button>
+    
   </main>
+
+  <script src="script.js"></script>
 </body>
 </html>
+

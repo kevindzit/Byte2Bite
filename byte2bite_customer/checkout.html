@@ -2,33 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Checkout - Byte2Bite</title>
+  <title>Checkout - Mi Casa</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="hero">
+  <div class="hero hero-menu">
     <header>
-      <h1>Checkout</h1>
+      <h1>Mi Casa Restaurant</h1>
     </header>
   </div>
 
-  <main>
-    <div id="cart-items"></div>
-    <h3 id="total">Total: $0.00</h3>
+  <!-- Main area styled like the menu page -->
+  <main class="menu-main">
+    <div class="menu-header-bar">
+      <button class="icon-btn" onclick="toggleMenu()">&#9776;</button>
 
-    <div class="name-field">
-      <label for="customer-name"><strong>Your Name:</strong></label>
-      <input type="text" id="customer-name" placeholder="Enter your name (optional)" />
+      <h2 id="menu-heading">Checkout</h2>
+
+      <button
+        class="icon-btn customer-cart"
+        onclick="window.location.href='checkout.html'"
+      >
+        &#128722; <span id="cartCount">0</span>
+      </button>
     </div>
 
-    <div class="checkout-btns">
-      <button onclick="placeOrder()">Place Order (Pay In-Store)</button>
+    <!-- Checkout content -->
+    <div class="cart-container">
+      <div id="cart-items"></div>
+      <h3 id="total">Total: $0.00</h3>
+
+      <div class="name-field">
+        <label for="customer-name"><strong>Your Name:</strong></label>
+        <input
+          type="text"
+          id="customer-name"
+          placeholder="Enter your name (optional)"
+        />
+      </div>
+
+      <div class="checkout-btns">
+        <button onclick="placeOrder()">Place Order (Pay In-Store)</button>
+      </div>
     </div>
   </main>
 
+  <div id="sideMenu" class="side-menu">
+    <button class="close-btn" onclick="toggleMenu()">×</button>
+
+    <a href="menu.html">Back to Menu</a>
+    <a href="index.html">Change Location</a>
+    <a href="checkout.html">View Cart</a>
+    <a href="#">Help</a>
+  </div>
+
+  <!-- Overlay -->
+  <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
   <script src="script.js"></script>
   <script>
-    loadCart();
+    function toggleMenu() {
+      const menu = document.getElementById("sideMenu");
+      const overlay = document.getElementById("menuOverlay");
+
+      menu.classList.toggle("open");
+      overlay.classList.toggle("show");
+    }
+
+    (function initCheckoutPage() {
+      const heading = document.getElementById("menu-heading");
+      const loc = getStoredLocation(); 
+
+      if (heading && loc && loc.label) {
+        heading.textContent = `${loc.label} Checkout`;
+      }
+
+      updateCartCount();
+      loadCart();        
+    })();
   </script>
 </body>
 </html>

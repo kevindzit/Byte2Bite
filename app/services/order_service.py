@@ -16,10 +16,18 @@ def place_order_with_items(data: dict) -> int:
     location_id = data['locationId']
     cart_items = data['items']
     customer_id = data.get('customerId')
+    customer_name = data.get('customerName')  
 
     total_price = _compute_total(cart_items)
-    new_order = Orders(CustomerID=customer_id, RestaurantID=location_id,
-    TotalPrice=total_price, Status='Pending')
+
+    new_order = Orders(
+        CustomerID=customer_id,
+        CustomerName=customer_name,     
+        RestaurantID=location_id,
+        TotalPrice=total_price,
+        Status='Pending'
+    )
+
     db.session.add(new_order)
     db.session.commit()
 
@@ -32,7 +40,7 @@ def place_order_with_items(data: dict) -> int:
                 Quantity=it['quantity'],
                 PricePerItem=menu_item.Price,
             ))
-            
+
     db.session.commit()
 
     payment = data.get('payment')
@@ -43,4 +51,5 @@ def place_order_with_items(data: dict) -> int:
             PaymentMethod=payment['method'],
         ))
     db.session.commit()
+
     return new_order.OrderID

@@ -1,28 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Byte 2 Bite - Menu</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Mi Casa Menu</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-	<div class="hero">
+  <div class="hero hero-menu">
     <header>
-      <h1>Mi Casa Menu</h1>
+      <h1>Mi Casa Restaurant</h1>
     </header>
   </div>
 
-  <div id="menu-container">Loading menu...</div>
+  <main class="menu-main">
+    <div class="menu-header-bar">
+      <button class="icon-btn" onclick="toggleMenu()">&#9776;</button>
 
-  <a href="checkout.html" class="cart-btn">Go to Cart</a>
+      <h2 id="menu-heading">Mi Casa Menu</h2>
 
+      <button
+        class="icon-btn customer-cart"
+        onclick="window.location.href='checkout.html'"
+      >
+        &#128722; <span id="cartCount">0</span>
+      </button>
+    </div>
+
+    <div id="menu-tabs"></div>
+
+    <div id="menu-container"></div>
+  </main>
+
+<div id="sideMenu" class="side-menu">
+  <button class="close-btn" onclick="toggleMenu()">×</button>
+
+  <a href="index.html">Change Location</a>
+  <a href="checkout.html">View Cart</a>
+  <a href="#">Order History</a>
+  <a href="#">Help</a>
+</div>
+
+
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+<script>
+function toggleMenu() {
+  const menu = document.getElementById("sideMenu");
+  const overlay = document.getElementById("menuOverlay");
+
+  menu.classList.toggle("open");
+  overlay.classList.toggle("show");
+}
+</script>
   <script src="script.js"></script>
   <script>
-    // Load menu from Flask for a default location (e.g., "Wheaton")
-      const selected = localStorage.getItem("selectedLocation") || "Wheaton";
-      loadMenu(selected);
+    initMenuPage();
   </script>
 </body>
 </html>
-

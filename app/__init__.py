@@ -8,7 +8,7 @@ def create_app(config_object: type[Config] = Config):
     app = Flask(__name__)
     app.config.from_object(config_object)
 
-    cors.init_app(app, resources={r"/api/*":{"orgins":app.config.get("CORS_ORGINS", [])}})
+    cors.init_app(app, resources={r"/api/*":{"CORS_ORGINS":app.config.get("CORS_ORGINS", [])}})
     init_cloud_sql(app)
     db.init_app(app)
 

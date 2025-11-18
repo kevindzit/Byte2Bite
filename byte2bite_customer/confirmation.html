@@ -15,6 +15,8 @@
   <script>
     const msg = localStorage.getItem("orderMsg");
     document.getElementById("orderMsg").textContent = msg || "Your order has been placed.";
+    localStorage.removeItem("orderMsg");
   </script>
 </body>
 </html>
+

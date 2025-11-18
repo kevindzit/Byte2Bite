@@ -8,18 +8,19 @@ from google.cloud.sql.connector import Connector
 import pymysql
 from google.cloud import storage
 
+
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
     os.path.dirname(__file__),
     'service-account-key.json'
 )
 
-client = storage.Client()   
+client = storage.Client()
 
 # Initialize flask object
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Cloud SQL Connector
+# Initialize Cloud SQL Connector (will use environment variable)
 connector = Connector()
 
 def getconn():
@@ -58,6 +59,7 @@ class MenuItems(db.Model):
     Price = db.Column(db.Numeric(10, 2), nullable=False)
     Category = db.Column(db.String(50))
     IsAvailable = db.Column(db.Boolean, default=True)
+    ImageURL = db.Column(db.String(500))  # URL to menu item image
 
 class Customers(db.Model):
     __tablename__ = 'Customers'
@@ -116,7 +118,8 @@ def get_menu(location_id):
             "name": item.Name,
             "description": item.Description,
             "price": str(item.Price),
-            "category": item.Category
+            "category": item.Category,
+            "image": item.ImageURL  # Include image URL
         }
         for item in items
     ]

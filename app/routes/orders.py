@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from ..services.order_service import place_order_with_items
 from ..extensions import db
+from sqlalchemy import func
 from ..models import Orders, Customers, OrderItems, MenuItems, Restaurants
 
 
@@ -30,11 +31,29 @@ def _status_col():
 
 
 def _items_attr(o):
-    return _attr(o, "Items", "items", "ItemList", default="")
+    """Return a human-readable items string like '2× Taco, 1× Burrito'."""
+    order_id = _attr(o, "OrderID", "id", "ID")
+    if order_id is None:
+        return ""
+
+    rows = (
+        db.session.query(OrderItems, MenuItems.Name)
+        .join(MenuItems, OrderItems.MenuItemID == MenuItems.MenuItemID)
+        .filter(OrderItems.OrderID == order_id)
+        .all()
+    )
+
+    if not rows:
+        return ""
+
+    return ", ".join(f"{oi.Quantity}× {name}" for (oi, name) in rows)
 
 
 def _created_at_attr(o):
-    return _attr(o, "CreatedAt", "created_at", "createdAt", "Timestamp", default=None)
+    created = _attr(o, "CreatedAt", "created_at", "CreatedAt", "Timestamp", default=None)
+    if created is None:
+        created = _attr(o, "OrderTime", "order_time", default=None)
+    return created
 
 
 def _customer_id_attr(o):
@@ -87,23 +106,33 @@ def _serialize_order(o):
 @bp.get("/orders")
 def get_active_orders():
     active_orders_query = (
-        db.session.query(Orders, Restaurants.Name)
+        db.session.query(
+            Orders,
+            Restaurants.Name.label("restaurant_name"),
+            func.coalesce(
+                Orders.CustomerName,
+                func.concat(Customers.FirstName, " ", Customers.LastName) 
+            ).label("customer_name"),
+        )
         .join(Restaurants, Orders.RestaurantID == Restaurants.RestaurantID)
+        .outerjoin(Customers, Orders.CustomerID == Customers.CustomerID)
         .filter(Orders.Status.in_(["Pending", "Preparing"]))
         .all()
     )
     orders_list = []
-    for order, restaurant_name in active_orders_query:
+    for order, restaurant_name, customer_name in active_orders_query:
         items_query = (
             db.session.query(OrderItems, MenuItems.Name)
             .join(MenuItems, OrderItems.MenuItemID == MenuItems.MenuItemID)
             .filter(OrderItems.OrderID == order.OrderID)
             .all()
         )
+
         items_list = [
             {"name": item_name, "quantity": order_item.Quantity}
             for order_item, item_name in items_query
         ]
+
         items_str = ", ".join(
             f"{it['quantity']}× {it['name']}" for it in items_list
         )
@@ -112,22 +141,65 @@ def get_active_orders():
             "id": order.OrderID,
             "orderId": order.OrderID,
             "restaurantName": restaurant_name,
+            "customer_name": customer_name or "Guest",
             "totalPrice": str(order.TotalPrice),
             "status": order.Status,
             "items": items_str,
-            "items_list": items_list
+            "items_list": items_list,
         })
 
     return jsonify(orders_list)
+
+
+@bp.post("/orders")
+def create_order():
+    data = request.get_json(silent=True) or {}
+
+    location_id = data.get("locationId")
+    items = data.get("items") or []
+    customer_name = data.get("customerName")
+    customer_id = data.get("customerId")  
+
+    if not location_id or not items:
+        return jsonify({"error": "locationId and items are required"}), 400
+
+
+    payload = {
+        "locationId": location_id,
+        "items": items,
+        "customerId": customer_id,
+        "customerName": customer_name or "Guest",
+    }
+
+    try:
+
+        order = place_order_with_items(payload)
+
+        order_id = getattr(order, "OrderID", None) or getattr(order, "id", None)
+        if order_id is None and isinstance(order, dict):
+            order_id = order.get("orderId") or order.get("id")
+
+        return jsonify({
+            "message": "Order created",
+            "orderId": order_id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print("Error in create_order:", e)
+        return jsonify({"error": "Failed to create order"}), 500
 
 
 @bp.get("/history")
 def get_history():
     status_col = _status_col()
     pk = _pk_col()
-    orders = Orders.query.filter(
-        db.func.trim(db.func.coalesce(status_col, "")) != "Completed"
-    ).order_by(pk.desc()).all()
+    orders = (
+        Orders.query
+        .filter(db.func.trim(db.func.coalesce(status_col, "")) == "Completed")
+        .order_by(pk.desc())
+        .all()
+    )
     return jsonify([_serialize_order(o) for o in orders])
 
 

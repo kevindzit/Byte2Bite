@@ -4,55 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byte 2 Bite - Order History</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #222;
-      color: #fff;
-      text-align: center;
-      padding: 20px;
-    }
-    h1 {
-      font-size: 2em;
-      color: #ffcc00;
-    }
-    .orders {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 20px;
-    }
-    .order {
-      background-color: #333;
-      border: 2px solid #555;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 10px;
-      width: 300px;
-      text-align: left;
-      box-shadow: 0 0 10px #000;
-    }
-    .order p {
-      margin: 6px 0;
-    }
-    .back-btn {
-      background-color: #ffcc00;
-      color: #000;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .back-btn:hover {
-      background-color: #ffaa00;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="history-page">
   <h1>Byte 2 Bite - Completed Orders</h1>
   <button class="back-btn" onclick="goBack()">⬅ Back to Active Orders</button>
-  <div class="orders" id="orders"></div>
+
+  <div class="orders-view">
+    <div class="orders" id="orders"></div>
+  </div>
+
+  <div class="history-controls">
+    <button class="nav-btn" onclick="scrollOrders('left')">⬅ Scroll Left</button>
+    <button class="nav-btn" onclick="scrollOrders('right')">➡ Scroll Right</button>
+  </div>
 
   <script>
     async function loadHistory() {
@@ -68,7 +33,13 @@
         return;
       }
 
-      orders.forEach(order => {
+      orders
+        .sort((a, b) => {
+          const dateA = new Date(a.completed_at || a.created_at || 0);
+          const dateB = new Date(b.completed_at || b.created_at || 0);
+          return dateB - dateA;
+        })
+        .forEach(order => {
         const div = document.createElement("div");
         div.className = "order";
         div.innerHTML = `
@@ -84,6 +55,17 @@
 
     function goBack() {
       window.location.href = "index.html";
+    }
+
+    function scrollOrders(direction) {
+      const container = document.querySelector(".orders-view");
+      if (!container) return;
+      const step = container.clientWidth || 300;
+      const offset = direction === "left" ? -step : step;
+      container.scrollBy({
+        left: offset,
+        behavior: "smooth"
+      });
     }
 
     loadHistory();

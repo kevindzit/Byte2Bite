@@ -1,13 +1,10 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 from ..models import MenuItems
 
 
 bp = Blueprint("menu", __name__)
 
-
-
-
-@app.route("/api/menu/<int:location_id>")
+@bp.get("/menu/<int:location_id>")
 def get_menu(location_id):
     try:
         items = MenuItems.query.filter_by(RestaurantID=location_id).all()
@@ -25,5 +22,5 @@ def get_menu(location_id):
         } for i in items]), 200
 
     except Exception as e:
-        app.logger.error(f"Error fetching menu for {location_id}: {e}")
+        current_app.logger.error(f"Error fetching menu for {location_id}: {e}")
         return jsonify({"error": "Internal server error"}), 500
