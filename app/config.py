@@ -1,12 +1,17 @@
 import os
-from google.cloud import storage
 
+# Load service account key located in the app directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SERVICE_KEY = os.path.join(BASE_DIR, "service-account-key.json")
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, "backend-api", "service-account-key.json")
+# Also check backend-api location for backwards compatibility
+BACKEND_API_KEY = os.path.abspath(os.path.join(BASE_DIR, os.pardir, "backend-api", "service-account-key.json"))
 
-if os.path.exists(SERVICE_ACCOUNT_PATH):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT_PATH
+# Try app directory first, then backend-api
+if os.path.exists(SERVICE_KEY):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_KEY
+elif os.path.exists(BACKEND_API_KEY):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = BACKEND_API_KEY
 
 
 

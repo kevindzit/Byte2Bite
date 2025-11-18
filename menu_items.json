@@ -1,0 +1,45 @@
+{
+  "instructions": "Edit the URLs below to change menu images.",
+  "menu_items": {
+    "Carne Asada Tacos": "https://www.isabeleats.com/wp-content/uploads/2020/03/carne-asada-tacos-recipe-small-7.jpg",
+    "Al Pastor Tacos": "https://www.seriouseats.com/thmb/4kbwN13BlZnZ3EywrtG2AzCKuYs=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/20210712-tacos-al-pastor-melissa-hom-seriouseats-37-f72cdd02c9574bceb1eef1c8a23b76ed.jpg",
+    "Carnitas Tacos": "https://i2.wp.com/www.downshiftology.com/wp-content/uploads/2020/04/Carnitas-Tacos-main.jpg",
+    "Pollo Asado Tacos": "https://www.maricruzavalos.com/wp-content/uploads/2023/11/pollo-asado-tacos-recipe.jpg",
+    "Barbacoa Tacos": "https://familiakitchen.com/wp-content/uploads/2021/01/iStock-960337396-3beef-barbacoa-tacos-e1695391119564.jpg",
+    "Fish Tacos": "https://bellyfull.net/wp-content/uploads/2024/07/Grilled-Fish-Tacos-blog-1.jpg",
+    "Veggie Tacos": "https://www.mondaysundaykitchen.com/wp-content/uploads/2021/02/sheet-pan-veggie-tacos-4.jpg",
+    "Shrimp Tacos": "https://therecipecritic.com/wp-content/uploads/2022/12/shrimp_tacos-1.jpg",
+
+    "Burrito Supreme": "https://popmenucloud.com/cdn-cgi/image/width%3D1200%2Cheight%3D1200%2Cfit%3Dscale-down%2Cformat%3Dauto%2Cquality%3D60/woeitprg/32e12659-69da-4ca6-a575-d39d3d7ea515.jpg",
+    "California Burrito": "https://www.espressomykitchen.com/wp-content/uploads/2024/04/EMK-The-Ultimate-California-Burrito-hero.jpg",
+    "Bean & Cheese Burrito": "https://whatsgabycooking.com/wp-content/uploads/2024/08/WGC-Bean-and-Cheese-Burritos-2.jpg",
+    "Carne Asada Burrito": "https://www.isabeleats.com/wp-content/uploads/2024/10/carne-asada-burritos-small-10.jpg",
+    "Chicken Burrito": "https://fitsianfoodlife.com/wp-content/uploads/2023/02/healthy-chicken-burrito-5.jpg",
+
+    "Cheese Quesadilla": "https://houseofyumm.com/wp-content/uploads/2023/08/Cheese-Quesadilla-8.jpg",
+    "Chicken Quesadilla": "https://www.homemadeinterest.com/wp-content/uploads/2022/08/chicken-quesadilla-recipe-5.jpg",
+
+    "Nachos": "https://www.onceuponachef.com/images/2024/02/beef-nachos.jpg",
+    "Guacamole & Chips": "https://cdn11.bigcommerce.com/s-5ljyj9oebs/images/stencil/600x600/products/9445/26850/P111023185929_1__47634.1707145448.jpg?c=2",
+    "Salsa & Chips": "https://media.chefdehome.com/740/0/0/salsa/homemade-salsa.jpg",
+
+    "Margarita": "https://www.santospirits.com/wp-content/uploads/2024/01/velvet_kickstand_margarita.jpg",
+    "Horchata": "https://carolinarice.com/wp-content/uploads/2020/04/GettyImages-493110032.jpg",
+    "Mexican Coca-Cola": "https://www.sodapoponline.com/cdn/shop/products/coke_600x.JPG?v=1571276462",
+    "Agua Fresca": "https://www.isabeleats.com/wp-content/uploads/2023/09/strawberry-agua-fresca-agua-de-fresa-9.jpg",
+
+    "Churros": "https://bakeitwithlove.com/wp-content/uploads/2022/04/Churros-Bake-It-With-Love-sq1.jpg",
+    "Flan": "https://images.ctfassets.net/szelmdrourcp/5abYakQjqN4sFi9MEcVU8y/f609b2994426cd0c10fe102e790b1df2/Caramel-Flan-174_cc1_00000000_desktop2x.jpg",
+    "Tres Leches Cake": "https://www.mamaknowsglutenfree.com/wp-content/uploads/2025/05/1Gluten-Free-Tres-Leches-Cake-20.jpg"
+  },
+  "category_defaults": {
+    "_comment": "If item not listed above, use these category defaults",
+    "Tacos": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=400",
+    "Burritos": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400",
+    "Quesadillas": "https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=400",
+    "Appetizers": "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=400",
+    "Desserts": "https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?w=400",
+    "Beverages": "https://images.unsplash.com/photo-1481671703460-040cb8a2d909?w=400"
+  },
+  "default_image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400"
+}
