@@ -1,9 +1,10 @@
 import os
-from google.cloud import storage
 
+# Load service account key located in the app directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SERVICE_KEY = os.path.join(BASE_DIR, "service-account-key.json")
 
-# ********CHANGE FILE PATH TO JSON FILE!**********
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join("C:\\Users\\chris\\Documents\\School\\COD\\2025Fall\\Capstone\\carbide-ego-476119-a7-737c5fbfffb9.json")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_KEY
 
 
 
