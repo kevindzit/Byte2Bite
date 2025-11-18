@@ -2,8 +2,11 @@ import os
 from google.cloud import storage
 
 
-# ********CHANGE FILE PATH TO JSON FILE!**********
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join("C:\\Users\\chris\\Documents\\School\\COD\\2025Fall\\Capstone\\carbide-ego-476119-a7-737c5fbfffb9.json")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, "backend-api", "service-account-key.json")
+
+if os.path.exists(SERVICE_ACCOUNT_PATH):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT_PATH
 
 
 
@@ -22,3 +25,8 @@ class Config:
     }
     
     CORS_ORIGINS = "*"
+    ADMIN_ACCESS_KEY = os.environ.get("BYTE2BITE_ADMIN_KEY", "byte2bite-admin")
+
+    # Stripe test keys (test mode - no real money)
+    STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "sk_test_51QVMCiP7FE6NYLqh0FwNBOQFQx8xQZ3ViJQ3XaQ0p9vTphN9kfJxMFbxXPRvEGbS6VGCXxYoMxsJT5IZDNGLmVwN00OUhvKI4g")
+    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "pk_test_51QVMCiP7FE6NYLqhcxNXOBKuKCQoLJWE3IA6OvwBfzWRhCJzQXsxwKxO8jXN9XJXvBb3OXsQQxJXTQ9xXNXBOX00XJ5xQZxB")

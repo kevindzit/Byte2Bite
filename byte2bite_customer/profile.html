@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Profile - Mi Casa</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="hero hero-menu">
+    <header>
+      <h1>Mi Casa Restaurant</h1>
+    </header>
+  </div>
+
+  <main class="menu-main">
+    <div class="menu-header-bar">
+      <button class="icon-btn" onclick="window.location.href='menu.html'">← Back</button>
+      <h2>My Profile</h2>
+      <button class="icon-btn customer-cart" onclick="window.location.href='checkout.html'">
+        Cart <span id="cartCount">0</span>
+      </button>
+    </div>
+
+    <div class="profile-container">
+      <div class="profile-section">
+        <h3>Account Information</h3>
+        <p><strong>Name:</strong> <span id="profile-name">Loading...</span></p>
+        <p><strong>Email:</strong> <span id="profile-email">Loading...</span></p>
+        <p><strong>Phone:</strong> <span id="profile-phone">Not provided</span></p>
+      </div>
+
+      <div class="profile-section rewards-section">
+        <h3>Rewards Points</h3>
+        <div class="rewards-display">
+          <div class="points-circle">
+            <span id="profile-points">0</span>
+            <div class="points-label">Points</div>
+          </div>
+          <div class="rewards-info">
+            <p>Your rewards balance</p>
+            <p class="rewards-value">Worth $<span id="rewards-value">0.00</span></p>
+            <p class="rewards-hint">Use 100 points to get $1 off your order!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <h3>How It Works</h3>
+        <ul class="rewards-how">
+          <li>Earn 10 points for every $1 spent</li>
+          <li>Redeem 100 points for $1 off</li>
+          <li>New members get 500 bonus points!</li>
+        </ul>
+      </div>
+
+      <button class="profile-logout-btn" onclick="logoutAndReturn()">Sign Out</button>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    updateCartCount();
+
+    async function loadProfile() {
+      const session = getCustomerSession();
+      if (!session) {
+        window.location.href = 'menu.html';
+        return;
+      }
+
+      document.getElementById('profile-name').textContent = `${session.firstName} ${session.lastName}`;
+      document.getElementById('profile-email').textContent = session.email || 'Not provided';
+      document.getElementById('profile-phone').textContent = session.phoneNumber || 'Not provided';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/customers/${session.customerId}`);
+        const data = await res.json();
+        const points = data.rewardsPoints || 0;
+        const value = (points / 100).toFixed(2);
+
+        document.getElementById('profile-points').textContent = points;
+        document.getElementById('rewards-value').textContent = value;
+
+        session.rewardsPoints = points;
+        saveCustomerSession(session);
+      } catch (err) {
+        console.error('Error loading profile:', err);
+        document.getElementById('profile-points').textContent = session.rewardsPoints || 0;
+        document.getElementById('rewards-value').textContent = ((session.rewardsPoints || 0) / 100).toFixed(2);
+      }
+    }
+
+    function logoutAndReturn() {
+      saveCustomerSession(null);
+      window.location.href = 'menu.html';
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

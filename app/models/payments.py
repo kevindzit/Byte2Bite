@@ -8,3 +8,5 @@ class Payments(db.Model):
     Amount = db.Column(db.Numeric(10, 2), nullable=False)
     PaymentMethod = db.Column(db.String(20), nullable=False)
     PaymentTime = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    TransactionID = db.Column(db.String(255))
+    PaymentStatus = db.Column(db.String(20), default='pending')

@@ -13,3 +13,17 @@ __pycache__/
 
 # Google Cloud service account key
 backend-api/service-account-key.json
+
+# Security documentation (contains sensitive info)
+ACCESS_CONTROL_SUMMARY.md
+REWARDS_TEST_INSTRUCTIONS.md
+
+# Misc/local folders to keep out of git
+.gitignore
+CLAUDE.md
+.claude/
+.venv/
+Old files/
+Project-Notes/
+project_notes_folder/
+backend-api/

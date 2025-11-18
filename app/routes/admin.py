@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify, request
+import secrets
+from flask import Blueprint, jsonify, request, current_app
+from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
 from ..extensions import db
 from ..models import (
@@ -8,9 +10,38 @@ from ..models import (
     Restaurants,
     Customers,
     InventoryItems,
+    StaffUsers,
 )
 
 bp = Blueprint("admin", __name__)
+_staff_sessions: dict[str, int] = {}
+
+
+def _serialize_staff(staff: StaffUsers):
+    return {
+        "id": staff.StaffID,
+        "firstName": staff.FirstName,
+        "lastName": staff.LastName,
+        "email": staff.Email,
+        "role": staff.Role,
+        "restaurantId": staff.RestaurantID,
+    }
+
+
+def _create_session(staff: StaffUsers):
+    token = secrets.token_hex(16)
+    _staff_sessions[token] = staff.StaffID
+    return token
+
+
+def _require_admin_session(token: str):
+    staff_id = _staff_sessions.get(token or "")
+    if not staff_id:
+        return None
+    staff = StaffUsers.query.get(staff_id)
+    if not staff or staff.Role.lower() != "admin":
+        return None
+    return staff
 
 
 @bp.get("/orders")
@@ -276,3 +307,98 @@ def update_menu_item(item_id: int):
             "message": "Menu item updated",
         }
     )
+
+
+@bp.post("/staff/login")
+def staff_login():
+    data = request.get_json(force=True)
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password")
+    if not email or not password:
+        return jsonify({"message": "Email and password required"}), 400
+
+    staff = StaffUsers.query.filter(func.lower(StaffUsers.Email) == email).first()
+    if not staff or not check_password_hash(staff.PasswordHash, password):
+        return jsonify({"message": "Invalid credentials"}), 401
+
+    session_token = _create_session(staff)
+    payload = _serialize_staff(staff)
+    payload["sessionToken"] = session_token
+    payload["message"] = "Login successful"
+    return jsonify(payload)
+
+
+@bp.get("/staff/me")
+def staff_me():
+    token = request.args.get("sessionToken")
+    staff_id = _staff_sessions.get(token or "")
+    if not staff_id:
+        return jsonify({"message": "Invalid session"}), 401
+    staff = StaffUsers.query.get_or_404(staff_id)
+    payload = _serialize_staff(staff)
+    payload["sessionToken"] = token
+    return jsonify(payload)
+
+
+@bp.get("/staff")
+def get_all_staff():
+    token = request.args.get("sessionToken")
+    if not _require_admin_session(token):
+        return jsonify({"message": "Admin session required"}), 403
+
+    staff_query = (
+        db.session.query(StaffUsers, Restaurants.Name)
+        .outerjoin(Restaurants, StaffUsers.RestaurantID == Restaurants.RestaurantID)
+        .order_by(StaffUsers.RestaurantID, StaffUsers.LastName, StaffUsers.FirstName)
+        .all()
+    )
+
+    staff_list = []
+    for staff, restaurant_name in staff_query:
+        staff_data = _serialize_staff(staff)
+        staff_data["restaurantName"] = restaurant_name or "Unassigned"
+        staff_list.append(staff_data)
+
+    return jsonify(staff_list)
+
+
+@bp.post("/staff")
+def create_staff():
+    data = request.get_json(force=True)
+    first = (data.get("firstName") or "").strip()
+    last = (data.get("lastName") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password")
+    role = (data.get("role") or "staff").lower()
+    restaurant_id = data.get("restaurantId")
+    session_token = data.get("sessionToken")
+
+    if not _require_admin_session(session_token):
+        # allow bootstrap creation if admin key provided
+        admin_key = data.get("adminKey")
+        if admin_key != current_app.config["ADMIN_ACCESS_KEY"]:
+            return jsonify({"message": "Admin session required"}), 403
+
+    if not first or not last or not email or not password:
+        return jsonify({"message": "Missing required fields"}), 400
+
+    if role not in {"staff", "admin"}:
+        role = "staff"
+
+    if StaffUsers.query.filter(func.lower(StaffUsers.Email) == email).first():
+        return jsonify({"message": "Email already exists"}), 400
+
+    new_staff = StaffUsers(
+        FirstName=first,
+        LastName=last,
+        Email=email,
+        PasswordHash=generate_password_hash(password),
+        Role=role,
+        RestaurantID=restaurant_id,
+    )
+    db.session.add(new_staff)
+    db.session.commit()
+
+    payload = _serialize_staff(new_staff)
+    payload["message"] = "Staff account created"
+    return jsonify(payload), 201

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Checkout - Mi Casa</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <div class="hero hero-menu">
@@ -30,20 +31,61 @@
     <!-- Checkout content -->
     <div class="cart-container">
       <div id="cart-items"></div>
-      <h3 id="total">Total: $0.00</h3>
 
-      <div class="name-field">
-        <label for="customer-name"><strong>Your Name:</strong></label>
-        <input
-          type="text"
-          id="customer-name"
-          placeholder="Enter your name (optional)"
-        />
+      <div class="order-summary">
+        <div class="summary-line">
+          <span>Subtotal:</span>
+          <span id="subtotal">$0.00</span>
+        </div>
+        <div class="summary-line">
+          <span>Tax:</span>
+          <span id="tax-amount">$0.00</span>
+        </div>
+        <div id="rewards-line" class="summary-line rewards-compact" style="display:none;">
+          <span id="rewards-text">Rewards:</span>
+          <button id="apply-rewards-btn" class="apply-rewards-btn" onclick="toggleRewards()">Apply</button>
+        </div>
+        <div id="rewards-discount" class="summary-line" style="display:none;">
+          <span>Rewards Discount:</span>
+          <span id="discount-amount">-$0.00</span>
+        </div>
+        <div class="summary-total">
+          <strong>Total:</strong>
+          <strong id="final-total">$0.00</strong>
+        </div>
       </div>
 
-      <div class="checkout-btns">
-        <button onclick="placeOrder()">Place Order (Pay In-Store)</button>
+      <div class="checkout-info">
+        <div class="name-field">
+          <label for="customer-name">Your Name:</label>
+          <input
+            type="text"
+            id="customer-name"
+            placeholder="Enter your name"
+          />
+        </div>
+
+        <div class="payment-options">
+          <label class="payment-label">Payment Method:</label>
+          <div class="payment-methods">
+            <label class="radio-option">
+              <input type="radio" name="payment-method" value="in-store" checked onchange="togglePaymentMethod()">
+              <span>Pay at Restaurant</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="payment-method" value="online" onchange="togglePaymentMethod()">
+              <span>Pay Online</span>
+            </label>
+          </div>
+        </div>
       </div>
+
+      <div id="card-element-container" style="display:none;">
+        <div id="card-element" style="border: 1px solid #ccc; padding: 10px; border-radius: 4px; margin: 10px 0;"></div>
+        <div id="card-errors" style="color: red; margin: 10px 0;"></div>
+      </div>
+
+      <button id="place-order-btn" class="place-order-btn" onclick="placeOrder()">Place Order</button>
     </div>
   </main>
 
@@ -53,7 +95,9 @@
     <a href="menu.html">Back to Menu</a>
     <a href="index.html">Change Location</a>
     <a href="checkout.html">View Cart</a>
-    <a href="#">Help</a>
+    <a href="help.html">Help</a>
+    <hr id="staff-divider" style="border: 1px solid #333; margin: 10px 0; display: none;">
+    <a id="staff-portal-link" href="../front-of-house-system/index.html?from=customer" style="display: none;">Staff Portal</a>
   </div>
 
   <!-- Overlay -->
@@ -69,16 +113,145 @@
       overlay.classList.toggle("show");
     }
 
+    // Make cartTotal a window property so loadCart can update it
+    window.cartTotal = 0;
+    let stripe = null;
+    let cardElement = null;
+    let paymentMethod = 'in-store';
+    window.rewardsApplied = false;
+    window.availablePoints = 0;
+    const TAX_RATE = 0.0875; // 8.75% Illinois sales tax
+
+    // Define updateRedemption immediately so it's available for loadCart
+    window.updateRedemption = function() {
+      const subtotal = window.cartTotal;
+      const tax = subtotal * TAX_RATE;
+      const beforeDiscount = subtotal + tax;
+
+      let discount = 0;
+      if (window.rewardsApplied) {
+        // Use all available points up to the order total
+        const maxUsable = Math.min(window.availablePoints, Math.floor(beforeDiscount * 100));
+        discount = maxUsable / 100;
+      }
+
+      const finalTotal = Math.max(beforeDiscount - discount, 0);
+
+      document.getElementById("subtotal").textContent = `$${subtotal.toFixed(2)}`;
+      document.getElementById("tax-amount").textContent = `$${tax.toFixed(2)}`;
+      document.getElementById("discount-amount").textContent = `-$${discount.toFixed(2)}`;
+      document.getElementById("final-total").textContent = `$${finalTotal.toFixed(2)}`;
+    }
+
+    // Define showRewardsIfApplicable early as well
+    window.showRewardsIfApplicable = function() {
+      const session = getCustomerSession();
+      const rewardsLine = document.getElementById("rewards-line");
+      const rewardsText = document.getElementById("rewards-text");
+
+      if (session) {
+        window.availablePoints = session.rewardsPoints || 0;
+
+        if (window.availablePoints > 0) {
+          // Show points available with Apply button
+          const dollars = (window.availablePoints / 100).toFixed(2);
+          rewardsText.textContent = `Rewards (${window.availablePoints} points = $${dollars}):`;
+          rewardsLine.style.display = "flex";
+          document.getElementById("apply-rewards-btn").style.display = "inline-block";
+        } else {
+          // Show message that no points are available
+          rewardsText.textContent = "You don't have any rewards points yet";
+          document.getElementById("apply-rewards-btn").style.display = "none";
+          rewardsLine.style.display = "flex";
+        }
+      } else {
+        rewardsLine.style.display = "none";
+      }
+
+      window.updateRedemption();
+    }
+
+    async function initStripe() {
+      const res = await fetch(`${API_BASE}/api/stripe-key`);
+      const data = await res.json();
+      stripe = Stripe(data.publishable_key);
+      const elements = stripe.elements();
+      cardElement = elements.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            color: '#32325d',
+          }
+        }
+      });
+      cardElement.mount('#card-element');
+
+      cardElement.on('change', event => {
+        const displayError = document.getElementById('card-errors');
+        displayError.textContent = event.error ? event.error.message : '';
+      });
+    }
+
+    function togglePaymentMethod() {
+      paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
+      const container = document.getElementById('card-element-container');
+      const btn = document.getElementById('place-order-btn');
+
+      if (paymentMethod === 'online') {
+        container.style.display = 'block';
+        btn.textContent = 'Complete Payment';
+        if (!stripe) initStripe();
+      } else {
+        container.style.display = 'none';
+        btn.textContent = 'Place Order';
+      }
+    }
+
+    function toggleRewards() {
+      window.rewardsApplied = !window.rewardsApplied;
+      window.updateRedemption();
+
+      const btn = document.getElementById("apply-rewards-btn");
+      const discountLine = document.getElementById("rewards-discount");
+
+      if (window.rewardsApplied) {
+        btn.textContent = "Remove";
+        btn.classList.add("applied");
+        discountLine.style.display = "flex";
+      } else {
+        btn.textContent = "Apply";
+        btn.classList.remove("applied");
+        discountLine.style.display = "none";
+      }
+    }
+
     (function initCheckoutPage() {
       const heading = document.getElementById("menu-heading");
-      const loc = getStoredLocation(); 
+      const loc = getStoredLocation();
 
       if (heading && loc && loc.label) {
         heading.textContent = `${loc.label} Checkout`;
       }
 
       updateCartCount();
-      loadCart();        
+      loadCart();
+      const session = getCustomerSession();
+      if (session) {
+        document.getElementById("customer-name").value = `${session.firstName || ""} ${session.lastName || ""}`.trim();
+        // Show rewards section after cart is loaded
+        setTimeout(() => window.showRewardsIfApplicable(), 100);
+      }
+
+      // Control Staff Portal visibility
+      const staffLink = document.getElementById('staff-portal-link');
+      const staffDivider = document.getElementById('staff-divider');
+      if (!session) {
+        staffLink.style.display = 'block';
+        staffDivider.style.display = 'block';
+      } else {
+        staffLink.style.display = 'none';
+        staffDivider.style.display = 'none';
+      }
     })();
   </script>
 </body>

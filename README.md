@@ -91,6 +91,8 @@ Byte-2-Bite-Project/
 - Browse menu with images and prices
 - Add/remove items with quantity controls
 - Customer search by phone number
+- Staff login required before accessing POS
+- Admin dashboard uses the same login and can create new staff accounts
 - Guest checkout option
 - Cash and card payment processing
 - Change calculation

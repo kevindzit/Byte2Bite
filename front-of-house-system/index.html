@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Byte2Bite - Front of House</title>
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * {
             margin: 0;
@@ -18,6 +19,55 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+        }
+
+        .staff-login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .staff-login-overlay.hidden {
+            display: none;
+        }
+
+        .staff-login-modal {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            width: 320px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .staff-login-modal input {
+            width: 100%;
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #bbb;
+        }
+
+        .staff-login-modal button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .staff-login-status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
         }
 
         .header {
@@ -90,6 +140,15 @@
             font-size: 14px;
             font-weight: bold;
             padding: 0 6px;
+        }
+
+        .staff-info {
+            position: absolute;
+            right: 160px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: #000;
         }
 
         .tabs {
@@ -599,6 +658,16 @@
     </style>
 </head>
 <body>
+    <div id="staffLoginOverlay" class="staff-login-overlay">
+        <div class="staff-login-modal">
+            <h2>Staff Login</h2>
+            <input type="email" id="staffEmail" placeholder="Email">
+            <input type="password" id="staffPassword" placeholder="Password">
+            <button onclick="submitStaffLogin()">Sign In</button>
+            <div class="staff-login-status" id="staffLoginStatus">Enter your credentials.</div>
+        </div>
+    </div>
+
     <div class="header">
         <div class="hamburger" onclick="toggleMenu()">
             <span></span>
@@ -610,6 +679,7 @@
             <div class="cart-text">Cart</div>
             <span class="cart-badge" id="cartBadge">0</span>
         </div>
+        <div class="staff-info" id="staffInfo"></div>
     </div>
 
     <div class="tabs">
@@ -660,6 +730,22 @@
                     <span>Total: $</span>
                     <span id="paymentTotal">0.00</span>
                 </div>
+                <div id="rewards-section" style="display:none; background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Customer Rewards</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Available Points: <span id="availablePoints">0</span></span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label>Use Points:</label>
+                            <input type="number" id="pointsToUse" value="0" min="0" style="width: 100px; padding: 5px;">
+                            <button onclick="applyRewards()" style="padding: 5px 15px;">Apply</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; color: #4CAF50;">Discount: -$<span id="rewardsDiscount">0.00</span></div>
+                </div>
+                <div class="payment-row" style="font-weight: bold; background-color: #e8e8e8;">
+                    <span>Final Total: $</span>
+                    <span id="finalTotal">0.00</span>
+                </div>
                 <div class="payment-row">
                     <span>Amount: $</span>
                     <span id="amountEntered">0.00</span>
@@ -694,8 +780,8 @@
         <div class="menu-drawer-item" onclick="showTab('order'); toggleMenu();">Orders</div>
         <div class="menu-drawer-item" onclick="showTab('account'); toggleMenu();">Account</div>
         <div class="menu-drawer-item" onclick="showTab('payment'); toggleMenu();">Payment</div>
-        <div class="menu-drawer-item">Settings</div>
-        <div class="menu-drawer-item">Help</div>
+        <div class="menu-drawer-item" id="adminLink" style="display:none;" onclick="window.location.href='admin.html';">Admin Dashboard</div>
+        <div class="menu-drawer-item" onclick="logoutStaff(); toggleMenu();">Sign Out</div>
     </div>
 
     <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
@@ -711,15 +797,98 @@
     <script>
         // Global state
         let currentTab = 'order';
-        let selectedRestaurant = 1; 
+        let selectedRestaurant = 1;
         let menuItems = [];
         let cart = [];
         let selectedCustomer = null;
         let paymentMethod = 'Cash';
         let amountEntered = '0';
+        let staffSession = null;
+        let appliedRewardsPoints = 0;
+
+        function loadStaffSession() {
+            staffSession = JSON.parse(localStorage.getItem('staffSession') || 'null');
+            const overlay = document.getElementById('staffLoginOverlay');
+            const info = document.getElementById('staffInfo');
+            const adminLink = document.getElementById('adminLink');
+
+            if (staffSession) {
+                overlay.classList.add('hidden');
+                if (info) {
+                    info.textContent = `${staffSession.firstName} (${staffSession.role})`;
+                }
+                // Show admin dashboard link for admin users
+                if (adminLink && staffSession.role && staffSession.role.toLowerCase() === 'admin') {
+                    adminLink.style.display = 'block';
+                }
+            } else {
+                overlay.classList.remove('hidden');
+                if (info) info.textContent = '';
+                if (adminLink) adminLink.style.display = 'none';
+            }
+        }
+
+        async function submitStaffLogin() {
+            const email = document.getElementById('staffEmail').value.trim();
+            const password = document.getElementById('staffPassword').value;
+            const status = document.getElementById('staffLoginStatus');
+            if (!email || !password) {
+                status.textContent = 'Email and password required.';
+                return;
+            }
+            status.textContent = 'Signing in...';
+            try {
+                const res = await fetch('http://127.0.0.1:5000/api/staff/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                if (!res.ok) {
+                    status.textContent = 'Login failed.';
+                    return;
+                }
+                const data = await res.json();
+                localStorage.setItem('staffSession', JSON.stringify(data));
+                status.textContent = 'Welcome!';
+                loadStaffSession();
+                loadMenu();
+            } catch (err) {
+                console.error(err);
+                status.textContent = 'Server unavailable.';
+            }
+        }
+
+        function logoutStaff() {
+            localStorage.removeItem('staffSession');
+            staffSession = null;
+            loadStaffSession();
+        }
+
+        function requireStaff() {
+            if (!staffSession) {
+                loadStaffSession();
+                return false;
+            }
+            return true;
+        }
 
         // Initialize on load
         window.onload = function() {
+            // Check if coming from customer portal (for testing - always require fresh login)
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromCustomer = urlParams.get('from') === 'customer';
+
+            // Check referrer to see if coming from customer site
+            const referrer = document.referrer;
+            const isFromCustomerSite = referrer.includes('/byte2bite_customer/') || fromCustomer;
+
+            // For testing: Always clear staff session if coming from customer portal
+            if (isFromCustomerSite) {
+                localStorage.removeItem('staffSession');
+                staffSession = null;
+            }
+
+            loadStaffSession();
             loadMenu();
         };
 
@@ -929,16 +1098,18 @@
 
         function displayCustomer(customer) {
             const listDiv = document.getElementById('customerList');
+            const rewardsInfo = customer.rewardsPoints ? `<div style="color: #f5b12a; font-size: 14px;">Rewards: ${customer.rewardsPoints} points ($${(customer.rewardsPoints/100).toFixed(2)})</div>` : '';
             listDiv.innerHTML = `
-                <div class="customer-item" onclick="selectCustomer(${customer.id}, '${customer.firstName} ${customer.lastName}', '${customer.phoneNumber}')">
+                <div class="customer-item" onclick="selectCustomer(${customer.id}, '${customer.firstName} ${customer.lastName}', '${customer.phoneNumber}', ${customer.rewardsPoints || 0})">
                     <div class="customer-phone">${customer.phoneNumber}</div>
                     <div class="customer-name">${customer.firstName} ${customer.lastName.charAt(0)}.</div>
+                    ${rewardsInfo}
                 </div>
             `;
         }
 
-        function selectCustomer(id, name, phone) {
-            selectedCustomer = { id, name, phone };
+        function selectCustomer(id, name, phone, rewardsPoints = 0) {
+            selectedCustomer = { id, name, phone, rewardsPoints };
             document.querySelectorAll('.customer-item').forEach(item => {
                 item.classList.remove('selected');
             });
@@ -984,14 +1155,50 @@
             updatePaymentDisplay();
         }
 
+        function applyRewards() {
+            const pointsInput = document.getElementById('pointsToUse');
+            const points = parseInt(pointsInput.value) || 0;
+            const maxPoints = selectedCustomer?.rewardsPoints || 0;
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const maxUsablePoints = Math.min(maxPoints, Math.floor(total * 100));
+
+            if (points > maxUsablePoints) {
+                alert(`You can only use up to ${maxUsablePoints} points for this order`);
+                pointsInput.value = maxUsablePoints;
+                appliedRewardsPoints = maxUsablePoints;
+            } else {
+                appliedRewardsPoints = points;
+            }
+
+            updatePaymentDisplay();
+        }
+
         function updatePaymentDisplay() {
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             document.getElementById('paymentTotal').textContent = total.toFixed(2);
 
+            // Show rewards section if customer is selected and has points
+            const rewardsSection = document.getElementById('rewards-section');
+            if (selectedCustomer?.rewardsPoints > 0) {
+                rewardsSection.style.display = 'block';
+                document.getElementById('availablePoints').textContent = selectedCustomer.rewardsPoints;
+                const pointsInput = document.getElementById('pointsToUse');
+                pointsInput.max = Math.min(selectedCustomer.rewardsPoints, Math.floor(total * 100));
+            } else {
+                rewardsSection.style.display = 'none';
+                appliedRewardsPoints = 0;
+            }
+
+            const discount = appliedRewardsPoints / 100;
+            const finalTotal = Math.max(total - discount, 0);
+
+            document.getElementById('rewardsDiscount').textContent = discount.toFixed(2);
+            document.getElementById('finalTotal').textContent = finalTotal.toFixed(2);
+
             const amount = parseFloat(amountEntered) || 0;
             document.getElementById('amountEntered').textContent = amount.toFixed(2);
 
-            const change = Math.max(0, amount - total);
+            const change = Math.max(0, amount - finalTotal);
             document.getElementById('changeAmount').textContent = change.toFixed(2);
         }
 
@@ -1003,9 +1210,11 @@
             }
 
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const discount = appliedRewardsPoints / 100;
+            const finalTotal = Math.max(total - discount, 0);
             const amount = parseFloat(amountEntered) || 0;
 
-            if (paymentMethod === 'Cash' && amount < total) {
+            if (paymentMethod === 'Cash' && amount < finalTotal) {
                 alert('Insufficient payment amount');
                 return;
             }
@@ -1016,34 +1225,76 @@
                 return;
             }
 
-
             const orderData = {
                 locationId: parseInt(selectedRestaurant),
                 customerId: selectedCustomer?.id || null,
+                customerName: selectedCustomer?.name || 'Guest',
                 items: cart.map(item => ({
                     id: item.id,
                     quantity: item.quantity
                 })),
-                payment: {
-                    method: paymentMethod,
-                    amount: paymentMethod === 'Card' ? total : amount
-                }
+                pointsToRedeem: appliedRewardsPoints || 0
             };
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/api/orders', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(orderData)
-                });
+                if (paymentMethod === 'Card') {
+                    // Card payment with Stripe (for test mode)
+                    const response = await fetch('http://127.0.0.1:5000/api/orders/stripe-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderData)
+                    });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    showConfirmation(result.orderId || Math.floor(Math.random() * 10000));
+                    if (!response.ok) {
+                        alert('Error creating payment. Please try again.');
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    // For POS terminal simulation - auto-confirm payment
+                    alert('Processing card payment...');
+
+                    // In real POS, this would integrate with card reader
+                    // For test mode, we'll simulate successful payment
+                    const confirmResponse = await fetch(`http://127.0.0.1:5000/api/orders/${data.order_id}/confirm-payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            payment_intent_id: data.payment_intent_id,
+                            points_redeemed: appliedRewardsPoints || 0
+                        })
+                    });
+
+                    if (confirmResponse.ok) {
+                        showConfirmation(data.order_id);
+                    } else {
+                        alert('Payment failed. Please try again.');
+                    }
                 } else {
-                    alert('Error placing order. Please try again.');
+                    // Cash payment (existing flow)
+                    orderData.payment = {
+                        method: 'Cash',
+                        amount: amount
+                    };
+
+                    const response = await fetch('http://127.0.0.1:5000/api/orders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderData)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        showConfirmation(result.orderId || Math.floor(Math.random() * 10000));
+                    } else {
+                        alert('Error placing order. Please try again.');
+                    }
                 }
             } catch (error) {
                 console.error('Error submitting order:', error);
@@ -1057,14 +1308,16 @@
         }
 
         function startNewOrder() {
-            cart = [];s
+            cart = [];
             selectedCustomer = null;
             amountEntered = '0';
             paymentMethod = 'Cash';
+            appliedRewardsPoints = 0;
 
             document.getElementById('phoneInput').value = '';
             document.getElementById('guestName').value = '';
             document.getElementById('customerList').innerHTML = '';
+            document.getElementById('pointsToUse').value = '0';
 
             document.getElementById('confirmationModal').classList.remove('active');
             updateCart();

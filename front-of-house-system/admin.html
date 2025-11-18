@@ -26,6 +26,63 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   }
 
+  header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #f5b12a;
+  }
+
+  header a {
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+    color: #f5b12a;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid #333;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  header a:hover {
+    background: linear-gradient(135deg, #333, #222);
+    border-color: #f5b12a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(245, 177, 42, 0.2);
+  }
+
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #2a2a2a 0%, #333333 100%);
+    color: #f5b12a;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid #444;
+    transition: all 0.3s ease;
+  }
+
+  .back-button:hover {
+    background: linear-gradient(135deg, #333333 0%, #3a3a3a 100%);
+    transform: translateX(-2px);
+    box-shadow: 0 2px 8px rgba(245, 177, 42, 0.2);
+    border-color: #f5b12a;
+  }
+
+  .back-button:before {
+    content: "←";
+    font-size: 18px;
+    font-weight: bold;
+  }
+
   main {
     max-width: 1400px;
     margin: 20px auto;
@@ -119,16 +176,31 @@
     margin-top: 6px;
     color: #ddd;
   }
+
+  .admin-lock {
+    text-align: center;
+    background: #2a2a2a;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
 </style>
 
 </head>
 <body>
   <header>
-    <h1>Mi Casa – Admin Dashboard</h1>
     <a href="index.html">← Front of House</a>
+    <h1>Mi Casa – Admin Dashboard</h1>
   </header>
 
   <main>
+    <section id="admin-lock" class="admin-lock" style="display:none;">
+      <h2>Admin Access Required</h2>
+      <p>Please log in as an admin from the Front-of-House screen before opening this dashboard.</p>
+      <button onclick="window.location.href='index.html'">Go to Front of House</button>
+    </section>
+
+    <div id="admin-dashboard" style="display:none;">
     <section>
       <h2>Select Restaurant Branch</h2>
       <label>
@@ -180,10 +252,85 @@
         <div id="menu-edit-container">Select a branch to load menu items.</div>
       </section>
     </div>
+
+    <section>
+      <h2>Staff Management</h2>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: inline-block; margin-right: 10px;">
+          Filter by Location:
+          <select id="staff-location-filter" style="margin-left: 8px;">
+            <option value="all">All Locations</option>
+            <option value="unassigned">Unassigned Staff</option>
+          </select>
+        </label>
+        <button onclick="loadStaffList()" style="margin-left: 10px;">Refresh</button>
+      </div>
+
+      <div id="staff-list-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+        <p>Select a location to view staff members.</p>
+      </div>
+
+      <h3 style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #444;">Add New Staff Member</h3>
+      <form id="staff-form">
+        <label>First Name<input type="text" id="staff-first" required></label>
+        <label>Last Name<input type="text" id="staff-last" required></label>
+        <label>Email<input type="email" id="staff-email" required></label>
+        <label>Password<input type="password" id="staff-password" required></label>
+        <label>Role
+          <select id="staff-role">
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <label>Restaurant Location
+          <select id="staff-restaurant">
+            <option value="">Unassigned</option>
+          </select>
+        </label>
+        <button type="submit">Create Staff Account</button>
+      </form>
+      <p class="status-text" id="staff-status"></p>
+    </section>
+    </div>
   </main>
 
   <script>
     const API_BASE = "http://127.0.0.1:5000";
+    const staffSession = JSON.parse(localStorage.getItem("staffSession") || "null");
+
+    function initDashboard() {
+      const lock = document.getElementById("admin-lock");
+      const dash = document.getElementById("admin-dashboard");
+
+      // Enhanced security: Verify admin role strictly
+      if (!staffSession || !staffSession.role || staffSession.role.toLowerCase() !== "admin") {
+        lock.style.display = "block";
+        dash.style.display = "none";
+
+        // If they're a regular staff member, redirect them back to front-of-house
+        if (staffSession && staffSession.role && staffSession.role.toLowerCase() === "staff") {
+          const redirectMsg = document.createElement("p");
+          redirectMsg.textContent = "Staff members cannot access the admin dashboard. Redirecting to Front of House...";
+          redirectMsg.style.color = "#ff6666";
+          lock.appendChild(redirectMsg);
+
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 2000);
+        }
+        return;
+      }
+
+      // Admin access granted
+      lock.style.display = "none";
+      dash.style.display = "block";
+      setupInventoryAddForm();
+      bindStaffForm();
+      loadBranches();
+      loadStaffList();
+      setupStaffLocationFilter();
+    }
 
     function getSelectedBranchId() {
       const select = document.getElementById("branch-select");
@@ -492,6 +639,151 @@
       }
     }
 
+    // Staff Management Functions
+    let allStaff = [];
+    let restaurants = [];
+
+    async function loadStaffList() {
+      const container = document.getElementById("staff-list-container");
+      const filter = document.getElementById("staff-location-filter");
+      const filterValue = filter.value;
+
+      container.innerHTML = "<p>Loading staff members...</p>";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/staff?sessionToken=${encodeURIComponent(staffSession.sessionToken)}`);
+        if (!res.ok) throw new Error("Failed to load staff");
+
+        allStaff = await res.json();
+
+        let filteredStaff = allStaff;
+
+        if (filterValue === "unassigned") {
+          filteredStaff = allStaff.filter(s => !s.restaurantId);
+        } else if (filterValue !== "all") {
+          const locationId = parseInt(filterValue, 10);
+          if (!isNaN(locationId)) {
+            filteredStaff = allStaff.filter(s => s.restaurantId === locationId);
+          }
+        }
+
+        if (!filteredStaff.length) {
+          container.innerHTML = "<p>No staff members found for this filter.</p>";
+          return;
+        }
+
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Location</th>
+          </tr>
+        `;
+
+        filteredStaff.forEach(staff => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${staff.firstName} ${staff.lastName}</td>
+            <td>${staff.email}</td>
+            <td>${staff.role}</td>
+            <td>${staff.restaurantName}</td>
+          `;
+          table.appendChild(tr);
+        });
+
+        container.innerHTML = "";
+        container.appendChild(table);
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = "<p>Error loading staff members.</p>";
+      }
+    }
+
+    async function setupStaffLocationFilter() {
+      const filter = document.getElementById("staff-location-filter");
+      const restaurantSelect = document.getElementById("staff-restaurant");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/restaurants`);
+        if (!res.ok) throw new Error("Failed to load restaurants");
+        restaurants = await res.json();
+
+        // Populate filter dropdown
+        restaurants.forEach(r => {
+          const opt = document.createElement("option");
+          opt.value = r.id;
+          opt.textContent = r.name;
+          filter.appendChild(opt);
+        });
+
+        // Populate form dropdown
+        restaurants.forEach(r => {
+          const opt = document.createElement("option");
+          opt.value = r.id;
+          opt.textContent = r.name;
+          restaurantSelect.appendChild(opt);
+        });
+
+        filter.addEventListener("change", loadStaffList);
+
+        // Load initial staff list
+        loadStaffList();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function bindStaffForm() {
+      const form = document.getElementById("staff-form");
+      const status = document.getElementById("staff-status");
+      if (!form) return;
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!staffSession) {
+          status.textContent = "Admin session required.";
+          return;
+        }
+        const payload = {
+          firstName: document.getElementById("staff-first").value.trim(),
+          lastName: document.getElementById("staff-last").value.trim(),
+          email: document.getElementById("staff-email").value.trim(),
+          password: document.getElementById("staff-password").value,
+          role: document.getElementById("staff-role").value,
+          restaurantId: document.getElementById("staff-restaurant").value || null,
+          sessionToken: staffSession.sessionToken
+        };
+        if (!payload.firstName || !payload.lastName || !payload.email || !payload.password) {
+          status.textContent = "All fields required.";
+          return;
+        }
+        status.textContent = "Saving...";
+        try {
+          const res = await fetch(`${API_BASE}/api/staff`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            status.textContent = data.message || "Error creating staff.";
+            return;
+          }
+          status.textContent = data.message + " - Refreshing list...";
+          form.reset();
+          // Reload staff list after creating new staff
+          setTimeout(() => {
+            loadStaffList();
+            status.textContent = "";
+          }, 1500);
+        } catch (err) {
+          console.error(err);
+          status.textContent = "Server error.";
+        }
+      });
+    }
+
     // Orchestration 
     function onBranchChange() {
       loadInventory();
@@ -503,9 +795,20 @@
       .getElementById("apply-inventory-changes-btn")
       .addEventListener("click", applyInventoryChanges);
 
+    // Check if coming from customer portal or other non-admin context
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromCustomer = urlParams.get('from') === 'customer';
+    const referrer = document.referrer;
+    const isFromCustomerSite = referrer.includes('/byte2bite_customer/') || fromCustomer;
+
+    // For security: Clear session if coming from customer portal
+    if (isFromCustomerSite) {
+      localStorage.removeItem('staffSession');
+      window.location.reload();
+    }
+
     // Init
-    loadBranches();
-    setupInventoryAddForm();
+    initDashboard();
   </script>
 </body>
 </html>

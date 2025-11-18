@@ -14,21 +14,27 @@
 
   <main class="menu-main">
     <div class="menu-header-bar">
-      <button class="icon-btn" onclick="toggleMenu()">&#9776;</button>
-
+      <button class="icon-btn menu-toggle" onclick="toggleMenu()">☰</button>
       <h2 id="menu-heading">Mi Casa Menu</h2>
-
-      <button
-        class="icon-btn customer-cart"
-        onclick="window.location.href='checkout.html'"
-      >
-        &#128722; <span id="cartCount">0</span>
-      </button>
+      <div class="header-actions">
+        <button class="icon-btn profile-btn" onclick="openAccountModal()">&#128100; Sign In</button>
+        <button class="icon-btn customer-cart" onclick="window.location.href='checkout.html'">
+          Cart <span id="cartCount">0</span>
+        </button>
+      </div>
     </div>
 
     <div id="menu-tabs"></div>
 
     <div id="menu-container"></div>
+
+    <section class="history-panel" id="order-history-section">
+      <div class="history-header">
+        <h3>Your Orders</h3>
+        <p class="history-hint">Sign in to see past orders.</p>
+      </div>
+      <div id="order-history"></div>
+    </section>
   </main>
 
 <div id="sideMenu" class="side-menu">
@@ -36,12 +42,46 @@
 
   <a href="index.html">Change Location</a>
   <a href="checkout.html">View Cart</a>
-  <a href="#">Order History</a>
-  <a href="#">Help</a>
+  <a href="javascript:void(0)" onclick="scrollToOrderHistory()">Order History</a>
+  <a href="help.html">Help</a>
+  <hr id="staff-divider" style="border: 1px solid #333; margin: 10px 0; display: none;">
+  <a id="staff-portal-link" href="../front-of-house-system/index.html?from=customer" style="display: none;">Staff Portal</a>
 </div>
 
 
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+<div id="accountModal" class="account-modal">
+  <div class="account-modal-content">
+    <button class="close-btn" onclick="closeAccountModal()">×</button>
+    <div id="accountFormSection">
+      <h3>Sign In</h3>
+      <div class="account-status-text" id="accountStatusText">Sign in for faster checkout</div>
+      <div class="account-form">
+        <input type="email" id="modal-login-email" placeholder="Email Address" autocomplete="email">
+        <input type="password" id="modal-login-password" placeholder="Password" autocomplete="current-password">
+        <button onclick="loginCustomer()">Sign In</button>
+      </div>
+      <hr>
+      <h3>Create Account</h3>
+      <div class="account-form">
+        <input type="text" id="modal-register-first" placeholder="First Name" autocomplete="given-name">
+        <input type="text" id="modal-register-last" placeholder="Last Name" autocomplete="family-name">
+        <input type="email" id="modal-register-email" placeholder="Email Address" autocomplete="email">
+        <input type="tel" id="modal-register-phone" placeholder="Phone Number (optional)" autocomplete="tel">
+        <input type="password" id="modal-register-password" placeholder="Create Password" autocomplete="new-password">
+        <button onclick="registerCustomer()">Create Account</button>
+      </div>
+    </div>
+    <div id="accountSummarySection" class="account-summary hidden">
+      <h3>Welcome Back!</h3>
+      <p id="accountSummaryName" style="font-size: 18px; margin: 20px 0; color: #ccc;"></p>
+      <button class="primary-button" onclick="closeAccountModal()">Continue Shopping</button>
+      <button class="secondary-button" onclick="window.location.href='profile.html'">View Profile & Rewards</button>
+      <button class="tertiary-button" onclick="logoutCustomer()">Sign Out</button>
+    </div>
+  </div>
+</div>
 
 <script>
 function toggleMenu() {
@@ -51,10 +91,53 @@ function toggleMenu() {
   menu.classList.toggle("open");
   overlay.classList.toggle("show");
 }
+
+function scrollToOrderHistory() {
+  toggleMenu();
+  setTimeout(() => {
+    const section = document.getElementById("order-history-section");
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, 300);
+}
 </script>
   <script src="script.js"></script>
   <script>
     initMenuPage();
+    loadCustomerOrders();
+
+    // Control Staff Portal visibility
+    function updateStaffPortalVisibility() {
+      const session = getCustomerSession();
+      const staffLink = document.getElementById('staff-portal-link');
+      const staffDivider = document.getElementById('staff-divider');
+
+      // Only show Staff Portal if NOT logged in as a customer
+      if (!session) {
+        staffLink.style.display = 'block';
+        staffDivider.style.display = 'block';
+      } else {
+        staffLink.style.display = 'none';
+        staffDivider.style.display = 'none';
+      }
+    }
+
+    // Update on page load
+    updateStaffPortalVisibility();
+
+    // Also update when login status changes
+    const originalLogin = window.loginCustomer;
+    window.loginCustomer = async function() {
+      await originalLogin();
+      updateStaffPortalVisibility();
+    };
+
+    const originalLogout = window.logoutCustomer;
+    window.logoutCustomer = function() {
+      originalLogout();
+      updateStaffPortalVisibility();
+    };
   </script>
 </body>
 </html>

@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
-from ..services.order_service import place_order_with_items
+from ..services.order_service import place_order_with_items, create_stripe_order
+from ..services.payment_service import verify_payment
 from ..extensions import db
 from sqlalchemy import func
-from ..models import Orders, Customers, OrderItems, MenuItems, Restaurants
+from ..models import Orders, Customers, OrderItems, MenuItems, Restaurants, Payments
+from ..config import Config
 
 
 bp = Blueprint("orders", __name__)
@@ -158,7 +160,8 @@ def create_order():
     location_id = data.get("locationId")
     items = data.get("items") or []
     customer_name = data.get("customerName")
-    customer_id = data.get("customerId")  
+    customer_id = data.get("customerId")
+    points_to_redeem = data.get("pointsToRedeem", 0)
 
     if not location_id or not items:
         return jsonify({"error": "locationId and items are required"}), 400
@@ -169,16 +172,11 @@ def create_order():
         "items": items,
         "customerId": customer_id,
         "customerName": customer_name or "Guest",
+        "pointsToRedeem": points_to_redeem,
     }
 
     try:
-
-        order = place_order_with_items(payload)
-
-        order_id = getattr(order, "OrderID", None) or getattr(order, "id", None)
-        if order_id is None and isinstance(order, dict):
-            order_id = order.get("orderId") or order.get("id")
-
+        order_id = place_order_with_items(payload)
         return jsonify({
             "message": "Order created",
             "orderId": order_id
@@ -218,3 +216,54 @@ def update_order(order_id: int):
 
     db.session.commit()
     return jsonify({"message": "Order updated"})
+
+
+@bp.post("/orders/stripe-payment")
+def create_stripe_payment():
+    data = request.get_json(silent=True) or {}
+
+    result = create_stripe_order(data)
+
+    if 'error' in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@bp.post("/orders/<int:order_id>/confirm-payment")
+def confirm_payment(order_id):
+    data = request.get_json(silent=True) or {}
+    payment_intent_id = data.get('payment_intent_id')
+
+    if not payment_intent_id:
+        return jsonify({'error': 'Payment intent ID required'}), 400
+
+    # Verify with Stripe
+    if verify_payment(payment_intent_id):
+        # Update order status
+        order = Orders.query.get(order_id)
+        if order:
+            order.Status = 'Pending'
+
+            # Update payment record
+            payment = Payments.query.filter_by(OrderID=order_id, TransactionID=payment_intent_id).first()
+            if payment:
+                payment.PaymentStatus = 'completed'
+
+            # Update rewards points
+            if order.CustomerID:
+                customer = Customers.query.get(order.CustomerID)
+                if customer:
+                    points_to_redeem = data.get('points_redeemed', 0)
+                    points_earned = int(float(order.TotalPrice) * 10)
+                    customer.RewardsPoints = (customer.RewardsPoints or 0) - points_to_redeem + points_earned
+
+            db.session.commit()
+            return jsonify({'success': True})
+
+    return jsonify({'error': 'Payment verification failed'}), 400
+
+
+@bp.get("/stripe-key")
+def get_stripe_key():
+    return jsonify({'publishable_key': Config.STRIPE_PUBLISHABLE_KEY})

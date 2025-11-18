@@ -4,6 +4,7 @@ from .customers import Customers
 from .orders import Orders, OrderItems
 from .payments import Payments
 from .inventory_items import InventoryItems
+from .staff import StaffUsers
 
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "Orders",
     "OrderItems",
     "Payments",
-    "InventoryItems"
+    "InventoryItems",
+    "StaffUsers",
 ]

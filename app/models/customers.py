@@ -9,3 +9,4 @@ class Customers(db.Model):
     Email = db.Column(db.String(100), unique=True, nullable=False)
     PasswordHash = db.Column(db.String(255), nullable=False)
     PhoneNumber = db.Column(db.String(20))
+    RewardsPoints = db.Column(db.Integer, nullable=False, default=0)

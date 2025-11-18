@@ -218,14 +218,41 @@ function attachQuantityControls() {
 // CHECKOUT
 // =====================
 async function loadCart() {
-  await loadMenuImages();
+  try {
+    await loadMenuImages();
+  } catch (e) {
+    console.warn("Could not load menu images:", e);
+    // Continue anyway - don't let image loading failure break cart
+  }
 
   const cart = getCart();
   const container = document.getElementById("cart-items");
   const totalEl = document.getElementById("total");
 
+  if (!container) {
+    console.error("Cart container not found!");
+    return;
+  }
+
   container.innerHTML = "";
   let total = 0;
+
+  // Check if cart is empty
+  if (cart.length === 0) {
+    container.innerHTML = '<div class="empty-cart-message">Your cart is empty</div>';
+    // Still update totals to show $0.00
+    if (typeof window.cartTotal !== 'undefined') {
+      window.cartTotal = 0;
+    }
+    if (typeof window.updateRedemption === 'function') {
+      try {
+        window.updateRedemption();
+      } catch (e) {
+        console.error("Error updating totals for empty cart:", e);
+      }
+    }
+    return;
+  }
 
   cart.forEach((item, index) => {
     total += item.price * item.quantity;
@@ -263,7 +290,37 @@ async function loadCart() {
     container.appendChild(row);
   });
 
-  totalEl.textContent = `Total: $${total.toFixed(2)}`;
+  // Update the global cartTotal first
+  if (typeof window.cartTotal !== 'undefined') {
+    window.cartTotal = total;
+  }
+
+  // Then update the display using the updateRedemption function if it exists
+  try {
+    if (typeof window.updateRedemption === 'function') {
+      window.updateRedemption();
+    } else if (document.getElementById("subtotal")) {
+      // Fallback for pages without updateRedemption
+      const TAX_RATE = 0.0875;
+      const tax = total * TAX_RATE;
+      const finalTotal = total + tax;
+
+      document.getElementById("subtotal").textContent = `$${total.toFixed(2)}`;
+      document.getElementById("tax-amount").textContent = `$${tax.toFixed(2)}`;
+      document.getElementById("final-total").textContent = `$${finalTotal.toFixed(2)}`;
+    }
+
+    // Show rewards if applicable
+    if (typeof window.showRewardsIfApplicable === 'function') {
+      window.showRewardsIfApplicable();
+    }
+  } catch (error) {
+    console.error("Error updating cart totals:", error);
+    // Still try to display basic totals as fallback
+    if (document.getElementById("subtotal")) {
+      document.getElementById("subtotal").textContent = `$${total.toFixed(2)}`;
+    }
+  }
 
   document.querySelectorAll(".qty-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -305,7 +362,15 @@ function updateCartQuantity(index, qty) {
 
   saveCart(cart);
   updateCartCount();
-  loadCart();  
+  loadCart();
+}
+
+function removeItem(index) {
+  let cart = getCart();
+  cart.splice(index, 1);
+  saveCart(cart);
+  updateCartCount();
+  loadCart();
 }
 
 
@@ -321,43 +386,141 @@ async function placeOrder() {
   }
 
   const { id: locationId, label } = getStoredLocation();
+  const session = getCustomerSession();
+  const paymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value || 'in-store';
+
+  // Calculate the subtotal to send to backend (tax is added on backend)
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const payload = {
     locationId,
     items: cart.map(i => ({
       id: i.id,
       quantity: i.quantity
-    })),
-    customerName: name
+    }))
   };
+
+  if (session) {
+    payload.customerId = session.customerId;
+    payload.customerName = `${session.firstName} ${session.lastName}`.trim();
+    payload.customerEmail = session.email;
+
+    // Check if rewards are applied (from checkout page)
+    if (typeof window.rewardsApplied !== 'undefined' && window.rewardsApplied && typeof window.availablePoints !== 'undefined') {
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const tax = subtotal * 0.0875; // Illinois tax rate
+      const maxUsable = Math.min(window.availablePoints, Math.floor((subtotal + tax) * 100));
+      payload.pointsToRedeem = maxUsable;
+    }
+  } else {
+    payload.customerName = name;
+  }
 
   console.log("Placing order with payload:", payload);
 
   try {
-    const res = await fetch(`${API_BASE}/api/orders`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    if (paymentMethod === 'online' && typeof window.stripe !== 'undefined' && typeof window.cardElement !== 'undefined') {
+      // Online payment with Stripe
+      const res = await fetch(`${API_BASE}/api/orders/stripe-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-    const text = await res.text(); 
-    console.log("Order response status:", res.status);
-    console.log("Order response body:", text);
+      if (!res.ok) {
+        alert("Failed to create payment. Please try again.");
+        return;
+      }
 
-    if (!res.ok) {
-      alert(`Order failed (${res.status}). Check backend log for details.`);
-      return;
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      // Process payment with Stripe
+      const { paymentIntent, error } = await window.stripe.confirmCardPayment(data.client_secret, {
+        payment_method: {
+          card: window.cardElement
+        }
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        // Confirm payment on backend
+        await fetch(`${API_BASE}/api/orders/${data.order_id}/confirm-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntent.id,
+            points_redeemed: payload.pointsToRedeem || 0
+          })
+        });
+
+        // Update rewards points locally
+        if (session && session.customerId) {
+          try {
+            const profileRes = await fetch(`${API_BASE}/api/customers/${session.customerId}`);
+            if (profileRes.ok) {
+              const profileData = await profileRes.json();
+              session.rewardsPoints = profileData.rewardsPoints;
+              saveCustomerSession(session);
+            }
+          } catch (e) {
+            console.log("Could not update rewards points:", e);
+          }
+        }
+
+        localStorage.removeItem("cart");
+        localStorage.setItem("orderMsg", `Order #${data.order_id} paid and placed for ${label}.`);
+        window.location.href = "confirmation.html";
+      }
+    } else {
+      // In-store payment (existing flow)
+      const res = await fetch(`${API_BASE}/api/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      console.log("Order response status:", res.status);
+      console.log("Order response body:", text);
+
+      if (!res.ok) {
+        alert(`Order failed (${res.status}). Check backend log for details.`);
+        return;
+      }
+
+      const data = text ? JSON.parse(text) : {};
+
+      // Update customer's rewards points if logged in
+      if (session && session.customerId) {
+        try {
+          const profileRes = await fetch(`${API_BASE}/api/customers/${session.customerId}`);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            session.rewardsPoints = profileData.rewardsPoints;
+            saveCustomerSession(session);
+          }
+        } catch (e) {
+          console.log("Could not update rewards points:", e);
+        }
+      }
+
+      localStorage.removeItem("cart");
+      const msg = data.orderId
+        ? `Order #${data.orderId} placed for ${label}.`
+        : "Your order has been placed.";
+      localStorage.setItem("orderMsg", msg);
+
+      window.location.href = "confirmation.html";
     }
-
-    const data = text ? JSON.parse(text) : {};
-
-    localStorage.removeItem("cart");
-    const msg = data.orderId
-      ? `Order #${data.orderId} placed for ${label}.`
-      : "Your order has been placed.";
-    localStorage.setItem("orderMsg", msg);
-
-    window.location.href = "confirmation.html";
   } catch (err) {
     console.error("Network/JS error placing order:", err);
     alert("Unable to place order. Is the API server running?");
@@ -413,4 +576,250 @@ function initMenuPage() {
 
   loadMenu(id);
   updateCartCount();
+}
+
+// =====================
+// CUSTOMER ACCOUNTS
+// =====================
+function getCustomerSession() {
+  return JSON.parse(localStorage.getItem("customerSession") || "null");
+}
+
+function saveCustomerSession(session) {
+  if (session) {
+    localStorage.setItem("customerSession", JSON.stringify(session));
+  } else {
+    localStorage.removeItem("customerSession");
+  }
+  renderAccountModal();
+}
+
+function openAccountModal() {
+  const modal = document.getElementById("accountModal");
+  if (!modal) return;
+  modal.classList.add("open");
+  renderAccountModal();
+}
+
+function closeAccountModal() {
+  const modal = document.getElementById("accountModal");
+  if (!modal) return;
+  modal.classList.remove("open");
+}
+
+async function registerCustomer() {
+  const firstName = (document.getElementById("modal-register-first")?.value || "").trim();
+  const lastName = (document.getElementById("modal-register-last")?.value || "").trim();
+  const email = (document.getElementById("modal-register-email")?.value || "").trim();
+  const phoneNumber = (document.getElementById("modal-register-phone")?.value || "").trim();
+  const password = document.getElementById("modal-register-password")?.value;
+  const formInputs = [
+    "modal-register-first",
+    "modal-register-last",
+    "modal-register-email",
+    "modal-register-phone",
+    "modal-register-password",
+  ];
+
+  const statusEl = document.getElementById("accountStatusText");
+
+  if (!firstName || !lastName || !email || !password) {
+    statusEl.textContent = "All required fields must be filled.";
+    statusEl.style.color = "#ff6666";
+    return;
+  }
+
+  statusEl.textContent = "Creating account...";
+  statusEl.style.color = "#ffcc00";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/customers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName, lastName, email, password, phoneNumber })
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      statusEl.textContent = msg.includes("already exists") ? "Email already registered." : "Unable to create account.";
+      statusEl.style.color = "#ff6666";
+      return;
+    }
+    const data = await res.json();
+    // After registration, fetch the full profile to get correct rewards points
+    const profileRes = await fetch(`${API_BASE}/api/customers/${data.customerId}`);
+    if (profileRes.ok) {
+      const profileData = await profileRes.json();
+      saveCustomerSession(profileData);
+    } else {
+      saveCustomerSession({ customerId: data.customerId, firstName, lastName, email, phoneNumber, rewardsPoints: 500 });
+    }
+    formInputs.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+    });
+
+    // Show welcome message with user's name
+    const formSection = document.getElementById("accountFormSection");
+    const summarySection = document.getElementById("accountSummarySection");
+    const summaryName = document.getElementById("accountSummaryName");
+
+    if (formSection && summarySection) {
+      formSection.classList.add("hidden");
+      summarySection.classList.remove("hidden");
+      if (summaryName) {
+        summaryName.textContent = `Hi ${firstName}! Your account has been created and you're now signed in.`;
+      }
+
+      // Update the welcome heading
+      const welcomeHeading = summarySection.querySelector("h3");
+      if (welcomeHeading) {
+        welcomeHeading.textContent = `Welcome, ${firstName}!`;
+      }
+    }
+
+    loadCustomerOrders();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Unable to create account. Please try again.";
+    statusEl.style.color = "#ff6666";
+  }
+}
+
+async function loginCustomer() {
+  const email = (document.getElementById("modal-login-email")?.value || "").trim();
+  const password = document.getElementById("modal-login-password")?.value;
+  const statusEl = document.getElementById("accountStatusText");
+
+  if (!email || !password) {
+    statusEl.textContent = "Please enter email and password";
+    statusEl.style.color = "#ff6666";
+    return;
+  }
+
+  statusEl.textContent = "Signing in...";
+  statusEl.style.color = "#ffcc00";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/customers/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) {
+      statusEl.textContent = "Login failed. Check email/password.";
+      statusEl.style.color = "#ff6666";
+      return;
+    }
+    const data = await res.json();
+    saveCustomerSession(data);
+
+    // Show welcome message with user's name
+    const formSection = document.getElementById("accountFormSection");
+    const summarySection = document.getElementById("accountSummarySection");
+    const summaryName = document.getElementById("accountSummaryName");
+
+    if (formSection && summarySection) {
+      formSection.classList.add("hidden");
+      summarySection.classList.remove("hidden");
+      if (summaryName) {
+        summaryName.textContent = `Hi ${data.firstName || 'there'}! You're now signed in.`;
+      }
+
+      // Update the welcome heading
+      const welcomeHeading = summarySection.querySelector("h3");
+      if (welcomeHeading) {
+        welcomeHeading.textContent = `Welcome, ${data.firstName}!`;
+      }
+    }
+
+    loadCustomerOrders();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Unable to login. Please try again.";
+    statusEl.style.color = "#ff6666";
+  }
+}
+
+async function loadCustomerOrders() {
+  const session = getCustomerSession();
+  const list = document.getElementById("order-history");
+  if (!list) return;
+
+  if (!session) {
+    list.innerHTML = "<p>Login to see your order history.</p>";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/customers/${session.customerId}/orders`);
+    const orders = await res.json();
+    if (!orders.length) {
+      list.innerHTML = "<p>No orders yet.</p>";
+      return;
+    }
+    list.innerHTML = "";
+    orders.forEach(order => {
+      const div = document.createElement("div");
+      const items = order.items.map(i => `${i.quantity}× ${i.name}`).join(", ");
+      div.className = "menu-item";
+      div.innerHTML = `
+        <strong>Order #${order.orderId}</strong><br>
+        ${order.createdAt} • ${order.status}<br>
+        ${items}<br>
+        Total: $${Number(order.totalPrice || 0).toFixed(2)}
+      `;
+      list.appendChild(div);
+    });
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = "<p>Unable to load history.</p>";
+  }
+}
+
+function renderAccountModal() {
+  const session = getCustomerSession();
+  const status = document.getElementById("accountStatusText");
+  const formSection = document.getElementById("accountFormSection");
+  const summarySection = document.getElementById("accountSummarySection");
+  const summaryName = document.getElementById("accountSummaryName");
+
+  if (status) {
+    status.textContent = session ? "" : "Sign in for faster checkout";
+    status.style.color = "#ffcc00";
+  }
+  if (formSection && summarySection) {
+    if (session) {
+      formSection.classList.add("hidden");
+      summarySection.classList.remove("hidden");
+      if (summaryName) {
+        summaryName.textContent = `${session.firstName} ${session.lastName}`.trim();
+      }
+    } else {
+      formSection.classList.remove("hidden");
+      summarySection.classList.add("hidden");
+    }
+  }
+
+  const profileBtn = document.querySelector(".profile-btn");
+  if (profileBtn && session) {
+    profileBtn.textContent = `👤 ${session.firstName}`;
+    profileBtn.onclick = () => window.location.href = 'profile.html';
+  }
+}
+
+function logoutCustomer() {
+  saveCustomerSession(null);
+  loadCustomerOrders();
+  closeAccountModal();
+}
+
+renderAccountModal();
+
+const accountModal = document.getElementById("accountModal");
+if (accountModal) {
+  accountModal.addEventListener("click", (event) => {
+    if (event.target === accountModal) {
+      closeAccountModal();
+    }
+  });
 }

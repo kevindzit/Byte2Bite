@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Help - Mi Casa Restaurant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="hero hero-menu">
+    <header>
+      <h1>Mi Casa Restaurant</h1>
+    </header>
+  </div>
+
+  <main class="menu-main">
+    <div class="menu-header-bar">
+      <button class="icon-btn" onclick="toggleMenu()">&#9776;</button>
+      <h2 id="menu-heading">Help & Support</h2>
+      <button class="icon-btn customer-cart" onclick="window.location.href='checkout.html'">
+        &#128722; <span id="cartCount">0</span>
+      </button>
+    </div>
+
+    <div class="help-container">
+      <section class="help-section">
+        <h3>How can we help you?</h3>
+        <p>We're here to assist you with your orders and any questions you may have about Mi Casa Restaurant.</p>
+
+        <div class="help-topics">
+          <div class="help-topic">
+            <h4>📱 Ordering Help</h4>
+            <ul>
+              <li>Browse our menu and add items to your cart</li>
+              <li>Review your order at checkout</li>
+              <li>Choose to pay in-store or online</li>
+              <li>Your order will be ready for pickup at the selected location</li>
+            </ul>
+          </div>
+
+          <div class="help-topic">
+            <h4>🎁 Rewards Program</h4>
+            <ul>
+              <li>Earn 10 points for every $1 spent</li>
+              <li>Redeem 100 points for $1 off your order</li>
+              <li>New members receive 500 welcome bonus points</li>
+              <li>View your points balance when logged in</li>
+            </ul>
+          </div>
+
+          <div class="help-topic">
+            <h4>📍 Locations & Hours</h4>
+            <ul>
+              <li>We have 12 convenient locations</li>
+              <li>Most locations open 11 AM - 10 PM daily</li>
+              <li>Select your preferred location from the home page</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="contact-form-section">
+          <h3>Contact Us</h3>
+          <p>Have a question or feedback? Send us a message and we'll get back to you soon.</p>
+
+          <form id="help-form" class="help-form">
+            <div class="form-group">
+              <label for="help-name">Your Name</label>
+              <input type="text" id="help-name" required placeholder="Enter your name">
+            </div>
+
+            <div class="form-group">
+              <label for="help-email">Your Email</label>
+              <input type="email" id="help-email" required placeholder="your@email.com">
+            </div>
+
+            <div class="form-group">
+              <label for="help-subject">Subject</label>
+              <select id="help-subject" required>
+                <option value="">Select a topic</option>
+                <option value="order">Order Issue</option>
+                <option value="menu">Menu Question</option>
+                <option value="rewards">Rewards Program</option>
+                <option value="location">Location/Hours</option>
+                <option value="feedback">General Feedback</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="help-message">Message</label>
+              <textarea id="help-message" rows="5" required placeholder="How can we help you?"></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn">Send Message</button>
+            <div id="help-status" class="help-status"></div>
+          </form>
+        </div>
+
+        <div class="quick-contact">
+          <h4>Quick Contact</h4>
+          <p>📧 Email: support@micasarestaurant.com</p>
+          <p>📞 Phone: 1-800-MI-CASA1</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="sideMenu" class="side-menu">
+    <button class="close-btn" onclick="toggleMenu()">×</button>
+    <a href="menu.html">Back to Menu</a>
+    <a href="index.html">Change Location</a>
+    <a href="checkout.html">View Cart</a>
+    <a href="help.html">Help</a>
+    <hr id="staff-divider" style="border: 1px solid #333; margin: 10px 0; display: none;">
+    <a id="staff-portal-link" href="../front-of-house-system/index.html?from=customer" style="display: none;">Staff Portal</a>
+  </div>
+
+  <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+  <script src="script.js"></script>
+  <script>
+    function toggleMenu() {
+      const menu = document.getElementById("sideMenu");
+      const overlay = document.getElementById("menuOverlay");
+      menu.classList.toggle("open");
+      overlay.classList.toggle("show");
+    }
+
+    // Update cart count
+    updateCartCount();
+
+    // Control Staff Portal visibility
+    function updateStaffPortalVisibility() {
+      const session = getCustomerSession();
+      const staffLink = document.getElementById('staff-portal-link');
+      const staffDivider = document.getElementById('staff-divider');
+
+      if (!session) {
+        staffLink.style.display = 'block';
+        staffDivider.style.display = 'block';
+      } else {
+        staffLink.style.display = 'none';
+        staffDivider.style.display = 'none';
+      }
+    }
+    updateStaffPortalVisibility();
+
+    // Handle form submission
+    document.getElementById('help-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const statusDiv = document.getElementById('help-status');
+      const name = document.getElementById('help-name').value;
+      const email = document.getElementById('help-email').value;
+      const subject = document.getElementById('help-subject').value;
+      const message = document.getElementById('help-message').value;
+
+      // Create email link
+      const subjectLine = `Mi Casa Support: ${subject}`;
+      const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
+      const mailtoLink = `mailto:support@micasarestaurant.com?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(body)}`;
+
+      // Open email client
+      window.location.href = mailtoLink;
+
+      // Show success message
+      statusDiv.innerHTML = '<p style="color: green;">Opening your email client... If it doesn\'t open automatically, please email us at support@micasarestaurant.com</p>';
+      statusDiv.style.display = 'block';
+
+      // Clear form after 3 seconds
+      setTimeout(() => {
+        document.getElementById('help-form').reset();
+        statusDiv.style.display = 'none';
+      }, 5000);
+    });
+  </script>
+</body>
+</html>
