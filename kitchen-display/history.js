@@ -1,0 +1,49 @@
+async function loadHistory() {
+      const response = await fetch("http://127.0.0.1:5000/api/history");  // NOTE: Change the API base URL if running Flask on a different server or port.
+
+      const orders = await response.json();
+
+      const container = document.getElementById("orders");
+      container.innerHTML = "";
+
+      if (orders.length === 0) {
+        container.innerHTML = "<p>No completed orders yet.</p>";
+        return;
+      }
+
+      orders
+        .sort((a, b) => {
+          const dateA = new Date(a.completed_at || a.created_at || 0);
+          const dateB = new Date(b.completed_at || b.created_at || 0);
+          return dateB - dateA;
+        })
+        .forEach(order => {
+        const div = document.createElement("div");
+        div.className = "order";
+        div.innerHTML = `
+          <p><strong>Order #${order.id}</strong></p>
+          <p><strong>Customer:</strong> ${order.customer_name}</p>
+          <p><strong>Items:</strong> ${order.items}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          <p><strong>Completed at:</strong> ${order.created_at}</p>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function goBack() {
+      window.location.href = "kitchen-display.html";
+    }
+
+    function scrollOrders(direction) {
+      const container = document.querySelector(".orders-view");
+      if (!container) return;
+      const step = container.clientWidth || 300;
+      const offset = direction === "left" ? -step : step;
+      container.scrollBy({
+        left: offset,
+        behavior: "smooth"
+      });
+    }
+
+    loadHistory();

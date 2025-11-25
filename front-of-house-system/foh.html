@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Byte2Bite - Front of House</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <link href="foh.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="staffLoginOverlay" class="staff-login-overlay">
+        <div class="staff-login-modal">
+            <h2>Staff Login</h2>
+            <input type="email" id="staffEmail" placeholder="Email">
+            <input type="password" id="staffPassword" placeholder="Password">
+            <button onclick="submitStaffLogin()">Sign In</button>
+            <div class="staff-login-status" id="staffLoginStatus">Enter your credentials.</div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="hamburger" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <h1>Mi Casa Restaurant</h1>
+        <div class="location-selector">
+            <select id="locationSelect" onchange="changeLocation()">
+                <option value="">Loading locations...</option>
+            </select>
+        </div>
+        <div class="cart-icon" onclick="showTab('payment')">
+            <div class="cart-text">Cart</div>
+            <span class="cart-badge" id="cartBadge">0</span>
+        </div>
+        <div class="staff-info" id="staffInfo"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('order')">Order</button>
+        <button class="tab-btn" onclick="showTab('account')">Account</button>
+        <button class="tab-btn" onclick="showTab('payment')">Payment</button>
+        <button class="tab-btn" onclick="showTab('current-orders')">Current Orders</button>
+        <button class="tab-btn" onclick="showTab('past-orders')">Past Orders</button>
+    </div>
+
+    <div id="order-tab" class="tab-content active">
+        <div class="menu-section">
+            <div class="select-label">Select</div>
+            <div id="menuItems" class="menu-items"></div>
+        </div>
+    </div>
+
+    <div id="account-tab" class="tab-content">
+        <div class="account-section">
+            <div class="account-search">
+                <div class="section-title">Account Search</div>
+                <div class="phone-search">
+                    <label class="phone-input-label">Phone Number</label>
+                    <div class="phone-input-wrapper">
+                        <input type="text" id="phoneInput" class="phone-input" placeholder="1-234-567-8901" maxlength="12">
+                        <button class="clear-btn" onclick="clearPhoneSearch()">×</button>
+                    </div>
+                </div>
+                <div id="customerList" class="customer-list"></div>
+            </div>
+
+            <div class="guest-checkout">
+                <div class="section-title">Guest Checkout</div>
+                <label class="guest-name-label">Name:</label>
+                <input type="text" id="guestName" class="guest-name-input" placeholder="Chris L.">
+                <button class="guest-checkout-btn" onclick="selectGuest()">Guest Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="payment-tab" class="tab-content">
+        <div class="payment-section">
+            <div class="payment-methods">
+                <button class="payment-method-btn selected" onclick="selectPaymentMethod('Cash')">Cash</button>
+                <button class="payment-method-btn" onclick="selectPaymentMethod('Card')">Card</button>
+            </div>
+
+            <div class="payment-display">
+                <div class="payment-row">
+                    <span>Total: $</span>
+                    <span id="paymentTotal">0.00</span>
+                </div>
+                <div id="rewards-section" style="display:none; background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Customer Rewards</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Available: <span id="availablePoints">0</span> pts (<span id="availablePointsDollars">$0.00</span>)</span>
+                        <button id="applyRewardsBtn" onclick="toggleRewards()" style="padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Apply All</button>
+                    </div>
+                    <div id="rewardsDiscountLine" style="margin-top: 10px; color: #4CAF50; display: none;">Discount: -$<span id="rewardsDiscount">0.00</span></div>
+                </div>
+                <div class="payment-row" style="font-weight: bold; background-color: #e8e8e8;">
+                    <span>Final Total: $</span>
+                    <span id="finalTotal">0.00</span>
+                </div>
+                <div class="payment-row">
+                    <span>Amount: $</span>
+                    <span id="amountEntered">0.00</span>
+                </div>
+                <div class="payment-row change">
+                    <span>Change: $</span>
+                    <span id="changeAmount">0.00</span>
+                </div>
+            </div>
+
+            <div class="numpad">
+                <button class="numpad-btn" onclick="addDigit('1')">1</button>
+                <button class="numpad-btn" onclick="addDigit('2')">2</button>
+                <button class="numpad-btn" onclick="addDigit('3')">3</button>
+                <button class="numpad-btn" onclick="addDigit('4')">4</button>
+                <button class="numpad-btn" onclick="addDigit('5')">5</button>
+                <button class="numpad-btn" onclick="addDigit('6')">6</button>
+                <button class="numpad-btn" onclick="addDigit('7')">7</button>
+                <button class="numpad-btn" onclick="addDigit('8')">8</button>
+                <button class="numpad-btn" onclick="addDigit('9')">9</button>
+                <button class="numpad-btn clear" onclick="clearAmount()">⌫</button>
+                <button class="numpad-btn" onclick="addDigit('0')">0</button>
+                <button class="numpad-btn" onclick="addDigit('.')">.</button>
+            </div>
+
+            <button class="complete-btn" onclick="completeOrder()">Complete</button>
+        </div>
+    </div>
+
+    <div id="current-orders-tab" class="tab-content">
+        <div class="orders-section">
+            <h2 style="text-align: center; margin: 20px 0; color: #333;">Current Orders - Ready for Pickup</h2>
+            <div id="current-orders-list" class="orders-list">
+                <p style="text-align: center; color: #666; padding: 40px;">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="past-orders-tab" class="tab-content">
+        <div class="orders-section">
+            <h2 style="text-align: center; margin: 20px 0; color: #333;">Past Orders - Completed</h2>
+            <div style="text-align: center; margin: 20px;">
+                <button class="refresh-btn" onclick="loadPastOrders()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Refresh</button>
+                <button class="sort-btn" onclick="togglePastOrdersSort()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Sort by Date <span id="sort-arrow">↓</span>
+                </button>
+            </div>
+            <div id="past-orders-list" class="orders-list">
+                <p style="text-align: center; color: #666; padding: 40px;">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-drawer" id="menuDrawer">
+        <h3>Menu</h3>
+        <div class="menu-drawer-item" onclick="showTab('order'); toggleMenu();">New Order</div>
+        <div class="menu-drawer-item" onclick="showTab('account'); toggleMenu();">Account</div>
+        <div class="menu-drawer-item" onclick="showTab('payment'); toggleMenu();">Payment</div>
+        <div class="menu-drawer-item" onclick="showTab('current-orders'); toggleMenu();">Current Orders</div>
+        <div class="menu-drawer-item" onclick="showTab('past-orders'); toggleMenu();">Past Orders</div>
+        <div class="menu-drawer-item" id="adminLink" style="display:none;" onclick="window.location.href='admin.html';">Admin Dashboard</div>
+        <div class="menu-drawer-item" onclick="logoutStaff(); toggleMenu();">Sign Out</div>
+    </div>
+
+    <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">✓ Order Placed Successfully!</div>
+            <div class="modal-message">Order #<span id="orderNumber">0</span> has been sent to the kitchen.</div>
+            <button class="modal-btn" onclick="startNewOrder()">New Order</button>
+        </div>
+    </div>
+
+    <script src="foh.js"></script>
+</body>
+</html>

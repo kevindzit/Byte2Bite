@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Byte 2 Bite - Kitchen Display System</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>
+    Byte 2 Bite - Kitchen Display System
+    <div class="location-selector">
+      <select id="locationSelect" onchange="changeLocation()">
+        <option value="">Loading locations...</option>
+      </select>
+    </div>
+  </h1>
+  <div class="active-orders-view">
+    <div id="order-container" class="active-orders-grid"><p>Loading orders...</p></div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group control-left">
+      <button class="arrow-btn" onclick="prevOrder()">⬅</button>
+      <button class="arrow-btn" onclick="nextOrder()">➡</button>
+    </div>
+    <div class="control-group control-center">
+      <button class="prep-btn" onclick="updateStatus('Preparing')">Preparing</button>
+      <button class="done-btn" onclick="updateStatus('Completed')">Complete</button>
+    </div>
+    <div class="control-group control-right">
+      <button class="undo-btn" onclick="undoLastAction()">Undo</button>
+      <a href="history.html" class="history-btn">View Completed Orders</a>
+    </div>
+  </div>
+
+  <script src="kitchen-display.js"></script>
+</body>
+</html>
