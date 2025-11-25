@@ -12,7 +12,7 @@ __pycache__/
 .DS_Store
 
 # Google Cloud service account key
-backend-api/service-account-key.json
+app/service-account-key.json
 
 # Security documentation (contains sensitive info)
 ACCESS_CONTROL_SUMMARY.md
