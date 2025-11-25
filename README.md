@@ -10,9 +10,11 @@ Online ordering system for restaurants - replacing traditional phone orders with
 - **Backend API** - Complete REST API with all endpoints
 - **Database Schema** - Full database structure with sample data
 - **Google Cloud SQL Setup** - Service account authentication configured
+- Successfully migrated schema and seed data into Cloud SQL instance
 
 ### 🔄 In Progress
 - **Cloud SQL Connection** - Waiting for Cloud SQL Admin API to be enabled
+- **1.0 Release** Preparing for 1.0 deployment (API → Cloud Run, Frontend → Hosting)
 
 ---
 
@@ -23,17 +25,21 @@ Online ordering system for restaurants - replacing traditional phone orders with
 - **Framework:** Flask
 - **Database:** Google Cloud SQL (MySQL 8.0)
 - **Authentication:** Service Account (JSON key)
+- **ORM:** SQLAlchemy (through Flask SQLAlchemy connector)
 
 ### Frontend (Three Systems)
 - **Languages:** HTML, CSS, JavaScript
 - **Frameworks:** None (pure vanilla JS)
 - **Style:** Modern, responsive, light theme
+- **Architecture:** Direct-to-API (no build tools required)
+- **Deployment Ready:** Can be hosted on GitHub Pages or Cloud Storage
 
 ### Database
 - **Platform:** Google Cloud SQL
 - **Type:** MySQL 8.0.41
 - **Instance:** byte2bite (us-central1)
 - **Tables:** Restaurants, MenuItems, Customers, Orders, OrderItems, Payments
+- **Scaling:** Supports scaling to 12+ restaurant locations through shared DB model
 
 ### Development Tools
 - **Code Editor:** Visual Studio Code
@@ -44,23 +50,40 @@ Online ordering system for restaurants - replacing traditional phone orders with
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Clone The Repository
+'''git clone https://github.com/kevin36776/Byte2Bite.git
+cd Byte2Bite
+'''
+
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set Up Service Account
+### 3. Set Up Service Account
 - Get `service-account-key.json` from team lead
 - Place in `backend-api/` folder
+- Confirm it is in .gitignore
 
-### 3. Start Backend
+### 4. Configure Database Environment
+DB_USER=byte2bite
+DB_PASSWORD= (Needed from team lead)
+DB_NAME=byte2bite
+DB_HOST=/cloudsql/carbide-ego-476119-a7:us-central1:byte2bite
+INSTANCE_CONNECTION_NAME=carbide-ego-476119-a7:us-central1:byte2bite
+
+
+### 5. Start Backend
 ```bash
 python backend-api/run.py
 ```
 Backend runs at: http://127.0.0.1:5000
 
-### 4. Open Frontend
-- **Front-of-House:** Right-click `front-of-house-system/index.html` → Open with Live Server
+### 6. Open Frontend
+- **Front-of-House:** 
+    - Open your IDE
+    - Right-click `front-of-house-system/index.html` → Open with Live Server
+
 - **Kitchen Display:** Right-click `kitchen-display/index.html` → Open with Live Server
 
 ---
@@ -70,7 +93,9 @@ Backend runs at: http://127.0.0.1:5000
 ```
 Byte-2-Bite-Project/
 ├── backend-api/           # Flask REST API
-│   ├── app.py            # Main API file
+│   ├── app.py             # Main API file
+|   ├── models.py          #Data formatting and layout
+|   ├── routes/            #Gets data from a specific item
 │   └── service-account-key.json  # Google Cloud credentials (not in git)
 ├── front-of-house-system/ # Staff POS interface
 │   └── index.html        # Complete POS system
