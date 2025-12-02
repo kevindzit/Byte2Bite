@@ -1,5 +1,13 @@
 from ..extensions import db
 
+'''
+This module defines two SQLAlchemy models used to represent customer orders in
+the Byte2Bite system:
+
+Orders: Stores the overall order information
+
+OrderItems: Represents each individual item within an order
+'''
 
 class Orders(db.Model):
     __tablename__ = 'Orders'

@@ -1,5 +1,10 @@
 from ..extensions import db
 
+'''
+Defines the SQLAlchemy model for handling payments. 
+Each record represents a completed or pending
+transaction associated with an order.
+'''
 
 class Payments(db.Model):
     __tablename__ = 'Payments'

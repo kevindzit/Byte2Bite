@@ -1,7 +1,20 @@
+'''
+Defines the SQLAlchemy model for the inventory system used by
+Byte2Bite restaurants. Each record represents an ingredient or supply item
+tracked at a specific restaurant location.
+'''
+
 from ..extensions import db
 
 
 class InventoryItems(db.Model):
+    '''
+    Stores all ingredient and supply items that each restaurant tracks.
+    This is used for:
+        - Low stock alerts
+        - Kitchen inventory checks
+        - Tracking ingredient usage for menu items
+        '''
     __tablename__ = "InventoryItems"
 
     InventoryItemID = db.Column(db.Integer, primary_key=True)

@@ -1,5 +1,9 @@
 from ..extensions import db
 
+'''
+This module defines the SQLAlchemy model for menu items in the Byte2Bite system.
+Each record represents a food or drink item offered by a specific restaurant.
+'''
 
 class MenuItems(db.Model):
     __tablename__ = 'MenuItems'
