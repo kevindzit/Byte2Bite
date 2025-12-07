@@ -14,22 +14,33 @@ elif os.path.exists(BACKEND_API_KEY):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = BACKEND_API_KEY
 
 
+#Configuration class for Flask application#
+#Stores database connection, CORS, admin key, and Stripe keys.
+#Loads settings via app.config.from_object(Config)
 
 class Config:
+    #SQLAlchemy settings for connecting to Cloud SQL
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://"
+
+    #Disable SQLAlchemy event system to save resources
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    #Cloud SQL connection parameters
     CLOUDSQL_INSTANCE = "carbide-ego-476119-a7:us-central1:byte2bite"
     DB_USER = "byte2bite"
     DB_PASS = "Byte2Bite224!"
     DB_NAME = "byte2bite"
     
+    #Improve connection health with these options
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_recycle": 1800,
     }
     
+    #CORS allowed origins "*"" allows all origins
     CORS_ORIGINS = "*"
+
+    #Admin access override key
     ADMIN_ACCESS_KEY = os.environ.get("BYTE2BITE_ADMIN_KEY", "byte2bite-admin")
 
     # Stripe test keys (test mode - no real money)
