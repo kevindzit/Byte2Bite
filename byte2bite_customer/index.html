@@ -16,10 +16,13 @@
   <main>
     <h2>Select a Location</h2>
     <p>or enter ZIP code:</p>
+
+    <!-- ZIP-based selection (optional alternate flow) -->
     <input type="text" id="zip" placeholder="Enter ZIP code" />
     <button onclick="enterZip()">Continue</button>
     <br><br><br><br>
     
+    <!-- Location button grid for when selectLocation is called -->
     <div class="locations">
       <button onclick="selectLocation('Wheaton')">Wheaton</button>
       <button onclick="selectLocation('Elmhurst')">Elmhurst</button>
@@ -37,6 +40,7 @@
     
   </main>
 
+  <!-- Shared script across customer pages -->
   <script src="script.js"></script>
 </body>
 </html>
