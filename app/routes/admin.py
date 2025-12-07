@@ -14,10 +14,15 @@ from ..models import (
 )
 
 bp = Blueprint("admin", __name__)
+
+#In-memory session store for staff login
+#Maps sessionToken -> StaffID
 _staff_sessions: dict[str, int] = {}
 
+# Helper Functions #
 
 def _serialize_staff(staff: StaffUsers):
+    """Converts StaffUsers model into a JSON-friendly dictionary."""
     return {
         "id": staff.StaffID,
         "firstName": staff.FirstName,
@@ -29,12 +34,16 @@ def _serialize_staff(staff: StaffUsers):
 
 
 def _create_session(staff: StaffUsers):
+    """Creates a random session token and assign it to a staff member."""
     token = secrets.token_hex(16)
     _staff_sessions[token] = staff.StaffID
     return token
 
 
 def _require_admin_session(token: str):
+    """
+    Validates a session token and checks that the user is an admin.
+    """
     staff_id = _staff_sessions.get(token or "")
     if not staff_id:
         return None
@@ -44,9 +53,13 @@ def _require_admin_session(token: str):
     return staff
 
 
+# Routes #
+
 @bp.get("/orders")
 def get_active_orders():
+    """Return all active (Pending/Preparing) orders across all restaurants."""
 
+    # Query joins Orders + Restaurant + optional Customer name
     active_orders_query = (
         db.session.query(
             Orders,
@@ -64,6 +77,8 @@ def get_active_orders():
     )
 
     orders_list = []
+
+    # Builds readable order output
     for order, restaurant_name, customer_name in active_orders_query:
         # Fetch items for this order
         items_query = (
@@ -128,6 +143,8 @@ def get_inventory_for_branch(restaurant_id: int):
 
 @bp.post("/admin/inventory/bulk-update")
 def bulk_update_inventory():
+    """Applies multiple inventory adjustments at once."""
+
     data = request.get_json(silent=True) or {}
 
     restaurant_id = data.get("restaurantId")
@@ -153,6 +170,7 @@ def bulk_update_inventory():
         if not item_id:
             continue
 
+        #Retrieve item
         item = (
             InventoryItems.query.filter_by(
                 InventoryItemID=item_id, RestaurantID=restaurant_id
@@ -162,6 +180,7 @@ def bulk_update_inventory():
         if not item:
             continue
 
+        #Apply update
         item.QuantityInStock = (item.QuantityInStock or 0) + delta
 
         results.append(
@@ -186,6 +205,7 @@ def bulk_update_inventory():
 
 @bp.post("/admin/inventory/order")
 def order_inventory():
+    """Adds more stock to an inventory item or creates a new one."""
     data = request.get_json(silent=True) or {}
 
     restaurant_id = data.get("restaurantId")
@@ -208,6 +228,7 @@ def order_inventory():
         .first()
     )
 
+    #Update existing or create new item
     if item:
         item.QuantityInStock = (item.QuantityInStock or 0) + qty
         db.session.commit()
@@ -241,6 +262,8 @@ def order_inventory():
 
 @bp.get("/admin/top-menu-items/<int:restaurant_id>")
 def get_top_menu_items(restaurant_id: int):
+    """Return the top 10 selling menu items based on quantity & revenue."""
+
     rows = (
         db.session.query(
             MenuItems.MenuItemID.label("id"),
@@ -274,6 +297,8 @@ def get_top_menu_items(restaurant_id: int):
 
 @bp.patch("/admin/menu-items/<int:item_id>")
 def update_menu_item(item_id: int):
+    """Updates details of a menu item."""
+
     item = MenuItems.query.get_or_404(item_id)
     data = request.get_json(silent=True) or {}
 
@@ -284,7 +309,7 @@ def update_menu_item(item_id: int):
         "category": "Category",
         "available": "IsAvailable",
     }
-
+    #Apply updates
     for json_key, attr in field_map.items():
         if json_key in data:
             value = data[json_key]
@@ -311,16 +336,20 @@ def update_menu_item(item_id: int):
 
 @bp.post("/staff/login")
 def staff_login():
+    """Authenticates staff member and generates session token."""
+
     data = request.get_json(force=True)
     email = (data.get("email") or "").strip().lower()
     password = data.get("password")
     if not email or not password:
         return jsonify({"message": "Email and password required"}), 400
 
+    # Retrieve staff member email
     staff = StaffUsers.query.filter(func.lower(StaffUsers.Email) == email).first()
     if not staff or not check_password_hash(staff.PasswordHash, password):
         return jsonify({"message": "Invalid credentials"}), 401
 
+    #Create session token
     session_token = _create_session(staff)
     payload = _serialize_staff(staff)
     payload["sessionToken"] = session_token
@@ -330,6 +359,7 @@ def staff_login():
 
 @bp.get("/staff/me")
 def staff_me():
+    """Returns details about the currently logged-in staff member."""
     token = request.args.get("sessionToken")
     staff_id = _staff_sessions.get(token or "")
     if not staff_id:
@@ -342,10 +372,15 @@ def staff_me():
 
 @bp.get("/staff")
 def get_all_staff():
+    """Admin-only: returns all staff users across all restaurants."""
+
     token = request.args.get("sessionToken")
+
+    #Checks admin session
     if not _require_admin_session(token):
         return jsonify({"message": "Admin session required"}), 403
 
+    #Join StaffUsers + Restaurants to get restaurant names
     staff_query = (
         db.session.query(StaffUsers, Restaurants.Name)
         .outerjoin(Restaurants, StaffUsers.RestaurantID == Restaurants.RestaurantID)
@@ -364,6 +399,7 @@ def get_all_staff():
 
 @bp.post("/staff")
 def create_staff():
+    """Admin-only: creates a new staff member or admin account."""
     data = request.get_json(force=True)
     first = (data.get("firstName") or "").strip()
     last = (data.get("lastName") or "").strip()
@@ -385,9 +421,11 @@ def create_staff():
     if role not in {"staff", "admin"}:
         role = "staff"
 
+    #Prevents duplicate emails
     if StaffUsers.query.filter(func.lower(StaffUsers.Email) == email).first():
         return jsonify({"message": "Email already exists"}), 400
 
+    #Create new staff member
     new_staff = StaffUsers(
         FirstName=first,
         LastName=last,
