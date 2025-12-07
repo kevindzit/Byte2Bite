@@ -4,16 +4,25 @@ from ..models import Orders, OrderItems, MenuItems, Payments, Customers
 from .payment_service import create_payment_intent
 
 
+#Helper function to compute total price of cart items#
+
 def _compute_total(cart_items):
+    '''Compute total price of cart items.'''
+
     total = Decimal("0.00")
+
     for it in cart_items:
         menu_item = db.session.get(MenuItems, it['id'])
         if menu_item:
             total += Decimal(menu_item.Price) * it['quantity']
+    
     return total
 
+#Create a full order including items, discount and rewards#
 
 def place_order_with_items(data: dict) -> int:
+    '''Place an order with items, apply discounts and update rewards points.'''
+
     location_id = data['locationId']
     cart_items = data['items']
     customer_id = data.get('customerId')
@@ -22,7 +31,7 @@ def place_order_with_items(data: dict) -> int:
 
     total_price = _compute_total(cart_items)
 
-    # Apply points discount (100 points = $1 off)
+    #Apply points discount (100 points = $1 off)
     discount = Decimal(points_to_redeem) / Decimal(100)
     final_price = max(total_price - discount, Decimal("0.00"))
 
@@ -35,8 +44,9 @@ def place_order_with_items(data: dict) -> int:
     )
 
     db.session.add(new_order)
-    db.session.commit()
+    db.session.commit() #Commit to get OrderID
 
+    #Add order items
     for it in cart_items:
         menu_item = db.session.get(MenuItems, it['id'])
         if menu_item:
@@ -49,6 +59,7 @@ def place_order_with_items(data: dict) -> int:
 
     db.session.commit()
 
+    #Add payment record
     payment = data.get('payment')
     if payment:
         db.session.add(Payments(
@@ -69,7 +80,11 @@ def place_order_with_items(data: dict) -> int:
     return new_order.OrderID
 
 
+#Stripe order creation with payment intent#
+
 def create_stripe_order(data: dict):
+    '''Create an order and payment intent for Stripe payment processing.'''
+
     location_id = data['locationId']
     cart_items = data['items']
     customer_id = data.get('customerId')
@@ -119,6 +134,7 @@ def create_stripe_order(data: dict):
         ))
         db.session.commit()
 
+        #Returned to frontend to complete payment via Stripe
         return {
             'order_id': new_order.OrderID,
             'client_secret': payment_result['client_secret'],
@@ -126,6 +142,7 @@ def create_stripe_order(data: dict):
             'amount': float(final_price),
             'points_to_redeem': points_to_redeem
         }
+    
     else:
         db.session.rollback()
         return {'error': payment_result['error']}
