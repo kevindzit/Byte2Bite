@@ -9,8 +9,11 @@ from ..config import Config
 
 bp = Blueprint("orders", __name__)
 
+# Helper functions for order serialization #
 
 def _col(model, *candidates):
+    """Returns the first matching column name that exists on a model."""
+
     for name in candidates:
         if hasattr(model, name):
             return getattr(model, name)
@@ -18,6 +21,8 @@ def _col(model, *candidates):
 
 
 def _attr(obj, *candidates, default=None):
+    """Returns the first matching attribute name that exists on an object."""
+
     for name in candidates:
         if hasattr(obj, name):
             return getattr(obj, name)
@@ -25,15 +30,20 @@ def _attr(obj, *candidates, default=None):
 
 
 def _pk_col():
+    """Returns the primary key column of the Orders model."""
+
     return _col(Orders, "OrderID", "id", "ID")
 
 
 def _status_col():
+    """Returns the status column of the Orders model."""
+
     return _col(Orders, "Status", "status")
 
 
 def _items_attr(o):
     """Return a human-readable items string like '2× Taco, 1× Burrito'."""
+
     order_id = _attr(o, "OrderID", "id", "ID")
     if order_id is None:
         return ""
@@ -52,6 +62,8 @@ def _items_attr(o):
 
 
 def _created_at_attr(o):
+    '''Returns the created at timestamp of an order object.'''
+
     created = _attr(o, "CreatedAt", "created_at", "CreatedAt", "Timestamp", default=None)
     if created is None:
         created = _attr(o, "OrderTime", "order_time", default=None)
@@ -59,10 +71,14 @@ def _created_at_attr(o):
 
 
 def _customer_id_attr(o):
+    '''Returns the customer ID of an order object.'''
+
     return _attr(o, "CustomerID", "customer_id", default=None)
 
 
 def _customer_name_attr(o):
+    '''Returns the customer name of an order object.'''
+
     name = _attr(o, "CustomerName", "customer_name", "Name", default=None)
     if name:
         return name
@@ -91,10 +107,14 @@ def _customer_name_attr(o):
 
 
 def _normalize_status(s):
+    '''Ensures status strings are capitalized.'''
+
     return (s or "").strip().capitalize()
 
 
 def _serialize_order(o):
+    '''Serializes an order object into a dictionary.'''
+
     raw_status = _attr(o, "Status", "status", default="")
     return {
         "id": _attr(o, "OrderID", "id", "ID"),
@@ -104,6 +124,9 @@ def _serialize_order(o):
         "created_at": _created_at_attr(o),
     }
 
+#ROUTES#
+
+#Get active orders#
 
 @bp.get("/orders")
 def get_active_orders():
@@ -131,7 +154,7 @@ def get_active_orders():
     active_orders_query = query.all()
     orders_list = []
     for order, restaurant_name, customer_name in active_orders_query:
-        items_query = (
+        items_query = ( #Fetch items for order
             db.session.query(OrderItems, MenuItems.Name)
             .join(MenuItems, OrderItems.MenuItemID == MenuItems.MenuItemID)
             .filter(OrderItems.OrderID == order.OrderID)
@@ -160,9 +183,11 @@ def get_active_orders():
 
     return jsonify(orders_list)
 
+#Create new order#
 
 @bp.post("/orders")
 def create_order():
+    """Creates an order and its associated items."""
     data = request.get_json(silent=True) or {}
 
     location_id = data.get("locationId")
@@ -184,7 +209,7 @@ def create_order():
     }
 
     try:
-        order_id = place_order_with_items(payload)
+        order_id = place_order_with_items(payload) #Create order via service
         return jsonify({
             "message": "Order created",
             "orderId": order_id
@@ -196,6 +221,8 @@ def create_order():
         return jsonify({"error": "Failed to create order"}), 500
 
 
+#Order history#
+
 @bp.get("/history")
 def get_history():
     # Get optional restaurant_id filter from query params
@@ -203,6 +230,7 @@ def get_history():
 
     status_col = _status_col()
     pk = _pk_col()
+    
     query = (
         Orders.query
         .filter(status_col.in_(["Completed", "Delivered"]))
@@ -215,9 +243,13 @@ def get_history():
     orders = query.order_by(pk.desc()).all()
     return jsonify([_serialize_order(o) for o in orders])
 
+#Update order#
 
 @bp.patch("/orders/<int:order_id>")
 def update_order(order_id: int):
+    """Updates an order's status."""
+
+
     data = (request.get_json(silent=True) or {})
     pk = _pk_col()
     order = Orders.query.filter(pk == order_id).first_or_404()
@@ -232,9 +264,12 @@ def update_order(order_id: int):
     db.session.commit()
     return jsonify({"message": "Order updated"})
 
+#Create Stripe payment intent#
 
 @bp.post("/orders/stripe-payment")
 def create_stripe_payment():
+    """Initialize a Stripe payment and return client secret."""
+
     data = request.get_json(silent=True) or {}
 
     result = create_stripe_order(data)
@@ -244,9 +279,12 @@ def create_stripe_payment():
 
     return jsonify(result)
 
+#Finalize payment and confirm#
 
 @bp.post("/orders/<int:order_id>/confirm-payment")
 def confirm_payment(order_id):
+    """Verify Stripe payment and update order, payment, and rewards data."""
+
     data = request.get_json(silent=True) or {}
     payment_intent_id = data.get('payment_intent_id')
 
@@ -278,7 +316,7 @@ def confirm_payment(order_id):
 
     return jsonify({'error': 'Payment verification failed'}), 400
 
-
+#Get Stripe publishable key#
 @bp.get("/stripe-key")
 def get_stripe_key():
     return jsonify({'publishable_key': Config.STRIPE_PUBLISHABLE_KEY})
