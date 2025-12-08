@@ -13,18 +13,19 @@ const LOCATION_MAP = {
   Bolingbrook: 11,
   "Western Springs": 12
 };
+
 const ZIP_LOCATION_MAP = {
-  Wheaton: ["60187", "60189"],
-  Elmhurst: ["60106", "60126", "60181"],
-  "Oak Brook": ["60523"],
+  Wheaton: ["60187", "60188", "60189"],
+  Elmhurst: ["60126", "60181"],
+  "Oak Brook": ["60521", "60522", "60523"],
   "Wood Dale": ["60191"],
-  Roselle: ["60157", "60172"],
-  "Glendale Heights": ["60139"],
-  Bartlett: ["60103", "60177"],
-  "Hoffman Estates": ["60010", "60067", "60169", "60179", "60192", "60195"],
-  Westmont: ["60516", "60523", "60559"],
+  Roselle: ["60172"],
+  "Glendale Heights": ["60139", "60137"],
+  Bartlett:  ["60103", "60108", "60133"],
+  "Hoffman Estates": ["60169", "60179", "60192"],
+  Westmont: ["60559"],
   Darien: ["60517", "60561"],
-  Bolingbrook: ["60440", "60446", "60490", "60517", "60565", "60585"],
+  Bolingbrook: ["60440", "60490"],
   "Western Springs": ["60558"],
 };
 
@@ -602,25 +603,73 @@ function selectLocation(label) {
   window.location.href = "menu.html";
 }
 
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371; // km
+  const toRad = deg => (deg * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 function findLocationByZip(zip) {
   const normalizedZip = (zip || "").replace(/\D/g, "").slice(0, 5);
   if (!normalizedZip) return null;
 
+  // Try exact match using ZIP_LOCATION_MAP
   for (const [location, zips] of Object.entries(ZIP_LOCATION_MAP)) {
-    if (zips.includes(normalizedZip)) return location;
+    if (zips.includes(normalizedZip)) {
+      return {location, mode: "exact" };
+    }
   }
-  return null;
+
+  // If we don't know this ZIP at all, bail out
+  const userCoords = ZIP_COORDS[normalizedZip];
+  if (!userCoords) {
+    return { location: null, mode: "unknown" };
+  }
+
+  // Pick the nearest *location* using coordinates
+  let bestLocation = null;
+  let bestDistance = Infinity;
+
+  for (const [location, coords] of Object.entries(LOCATION_COORDS)) {
+    const dist = haversine(
+      userCoords.lat,
+      userCoords.lng,
+      coords.lat,
+      coords.lng
+    );
+
+    if (dist < bestDistance) {
+      bestDistance = dist;
+      bestLocation = location;
+    }
+  }
+
+  return { location: bestLocation, mode: "nearest" };
 }
 
 function enterZip() {
   const zipInput = document.getElementById("zip");
   const messageEl = document.getElementById("zipMessage");
+
+  // Clear old message
   if (messageEl) {
     messageEl.textContent = "";
     messageEl.style.color = "";
   }
 
   const zip = zipInput ? zipInput.value.trim() : "";
+
   if (!zip) {
     if (messageEl) {
       messageEl.textContent = "Enter ZIP";
@@ -631,18 +680,35 @@ function enterZip() {
     return;
   }
 
-  const matchedLocation = findLocationByZip(zip);
-  if (!matchedLocation) {
+  const result = findLocationByZip(zip);
+  const location = result?.location;
+  const mode = result?.mode;
+
+  if (!location) {
     if (messageEl) {
-      messageEl.textContent = "No restaurants in your location.";
+      messageEl.textContent = "No restaurants in your area yet. Please choose a location manually.";
       messageEl.style.color = "#b00020";
     } else {
-      alert("No restaurants in your location.");
+      alert("No restaurants in your area yet. Please choose a location manually.");
     }
     return;
   }
 
-  selectLocation(matchedLocation);
+  // Show a friendly message based on how we matched
+  if (messageEl) {
+    if (mode === "exact") {
+      messageEl.textContent = `Great! We found a restaurant in ${location}.`;
+      messageEl.style.color = "green";
+    } else if (mode === "nearest") {
+      messageEl.textContent = `We don't have a location in that exact ZIP, but your nearest restaurant is in ${location}.`;
+      messageEl.style.color = "green";
+    } else {
+      messageEl.textContent = "";
+    }
+  }
+
+  // Continue with your existing flow
+  selectLocation(location);
 }
 
 // =====================
