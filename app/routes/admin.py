@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
 from datetime import timedelta
 from google.cloud import storage
+from decimal import Decimal
 from ..extensions import db
 from ..models import (
     Orders,
@@ -238,7 +239,8 @@ def bulk_update_inventory():
 
 @bp.post("/admin/inventory/order")
 def order_inventory():
-    """Adds more stock to an inventory item or creates a new one."""
+    """Adds more stock to an inventory item or creates a new one.
+       Optionally also creates a new MenuItems row."""
     data = request.get_json(silent=True) or {}
 
     restaurant_id = data.get("restaurantId")
@@ -257,14 +259,14 @@ def order_inventory():
         return jsonify({"error": "quantity must be an integer"}), 400
 
     item = (
-        InventoryItems.query.filter_by(RestaurantID=restaurant_id, Name=name)
+        InventoryItems.query
+        .filter_by(RestaurantID=restaurant_id, Name=name)
         .first()
     )
 
-    #Update existing or create new item
+    # Update existing or create new item
     if item:
         item.QuantityInStock = (item.QuantityInStock or 0) + qty
-        db.session.commit()
         status_code = 200
         message = "Inventory updated"
     else:
@@ -275,18 +277,50 @@ def order_inventory():
             Unit=unit,
         )
         db.session.add(item)
-        db.session.commit()
         status_code = 201
         message = "New inventory item created"
+
+    # Option for create a MenuItems row
+    menu_item_id = None
+
+    if data.get("createMenuItem"):
+        menu_name = (data.get("menuName") or name).strip()
+        menu_desc = data.get("menuDescription") or None
+        menu_cat = (data.get("menuCategory") or "").strip() or None
+        menu_image = (data.get("menuImage") or "").strip() or None
+
+        price_raw = data.get("menuPrice")
+        try:
+            price = Decimal(str(price_raw)) if price_raw not in (None, "") else Decimal("0.00")
+        except Exception:
+            return jsonify({"error": "menuPrice must be a valid number"}), 400
+
+        menu_item = MenuItems(
+            RestaurantID=restaurant_id,
+            Name=menu_name,
+            Description=menu_desc,
+            Price=price,
+            Category=menu_cat,
+            IsAvailable=True,
+            ImageURL=menu_image,
+        )
+        db.session.add(menu_item)
+
+        db.session.flush()
+        menu_item_id = getattr(menu_item, "MenuItemID", getattr(menu_item, "id", None))
+
+    db.session.commit()
+    inventory_id = getattr(item, "InventoryItemID", getattr(item, "id", None))
 
     return (
         jsonify(
             {
-                "id": item.InventoryItemID,
+                "id": inventory_id,
                 "name": item.Name,
                 "quantity": item.QuantityInStock,
                 "unit": item.Unit,
                 "message": message,
+                "menuItemId": menu_item_id,
             }
         ),
         status_code,

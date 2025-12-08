@@ -315,6 +315,13 @@ const API_BASE = "http://127.0.0.1:5000";
       const form = document.getElementById("inventory-add-form");
       const statusEl = document.getElementById("inventory-add-status");
 
+      const checkbox = document.getElementById("add-item-create-menu");
+      const extra = document.getElementById("add-menu-extra");
+
+      checkbox.addEventListener("change", () => {
+        extra.style.display = checkbox.checked ? "block" : "none";
+      })
+
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         statusEl.textContent = "Adding item...";
@@ -324,22 +331,64 @@ const API_BASE = "http://127.0.0.1:5000";
         const quantity = document.getElementById("add-item-quantity").value;
         const unit = (document.getElementById("add-item-unit").value || "units").trim();
 
+        // menu fields
+        const createMenu = document.getElementById("add-item-create-menu").checked;
+        const menuName = document.getElementById("add-menu-name")?.value.trim() || "";
+        const menuPrice = document.getElementById("add-menu-price")?.value;
+        const menuCategory = document.getElementById("add-menu-category")?.value.trim() || "";
+        const menuDescription = document.getElementById("add-menu-description")?.value.trim() || "";
+        const menuImage = document.getElementById("add-menu-image")?.value.trim() || "";
+        
+        // Image upload
+        const imageFileInput = document.getElementById("add-menu-image-file");
+        const imageFile = imageFileInput?.files?.[0] || null;
+
+        const payload = {
+          restaurantId: branchId,
+          name,
+          quantity,
+          unit,
+        };
+
+        if (createMenu) {
+          payload.createMenuItem = true;
+          payload.menuName = menuName || name; 
+          payload.menuPrice = menuPrice;
+          payload.menuCategory = menuCategory;
+          payload.menuDescription = menuDescription;
+          payload.menuImage = menuImage;
+        }
+
         try {
+          // Create / update inventory + optional menu item
           const res = await fetch(`${API_BASE}/api/admin/inventory/order`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              restaurantId: branchId,
-              name,
-              quantity,
-              unit,
-            }),
+            body: JSON.stringify(payload),
           });
 
           const data = await res.json();
           if (!res.ok) {
             statusEl.textContent = data.error || "Error adding item.";
             return;
+          }
+
+          // If a menu item was created AND a file was chosen, upload it
+          if (createMenu && imageFile && data.menuItemId) {
+            const formData = new FormData();
+            formData.append("image_file", imageFile);
+
+            const imgRes = await fetch(`${API_BASE}/api/admin/menu-items/${data.menuItemId}/image`, {
+              method: "POST",
+              body: formData,
+            });
+
+            const imgData = await imgRes.json();
+            if (!imgRes.ok) {
+              console.error(imgData);
+              statusEl.textContent = "Item added, but error uploading image.";
+              return;
+            }
           }
 
           statusEl.textContent = data.message || "Item added.";
@@ -501,6 +550,7 @@ const API_BASE = "http://127.0.0.1:5000";
 
         alert("Image updated!");
     }
+
     // =======================
     // Save menu Item Function
     // =======================
@@ -531,6 +581,7 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
+    
     // ==========================
     // Staff Management Functions
     // ==========================

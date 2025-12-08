@@ -60,14 +60,55 @@
             Item Name:
             <input type="text" id="add-item-name" required>
           </label>
+
           <label>
             Starting Quantity:
             <input type="number" id="add-item-quantity" required class="small-input">
           </label>
+
           <label>
             Unit:
             <input type="text" id="add-item-unit" placeholder="pcs, lbs, cases..." />
           </label>
+
+          <!-- NEW: Also create menu item toggle -->
+          <label style="margin-top: 8px; display:block;">
+            <input type="checkbox" id="add-item-create-menu">
+            Also create a menu item for this inventory item
+          </label>
+
+          <!-- NEW: extra fields for MenuItems -->
+          <div id="add-menu-extra" style="display:none; margin-top:8px;">
+            <label>
+              Menu Name:
+              <input type="text" id="add-menu-name" placeholder="Defaults to Item Name">
+            </label>
+
+            <label>
+              Price:
+              <input type="number" id="add-menu-price" step="0.01" placeholder="e.g. 12.99">
+            </label>
+
+            <label>
+              Category:
+              <input type="text" id="add-menu-category" placeholder="Entrée, Drink, etc.">
+            </label>
+
+            <label>
+              Description:
+              <textarea id="add-menu-description" rows="2"></textarea>
+            </label>
+
+            <label>
+              Image URL:
+              <input type="text" id="add-menu-image">
+            </label>
+              <label>
+              Upload Image:
+              <input type="file" id="add-menu-image-file" accept="image/*">
+            </label>
+          </div>
+
           <button type="submit" style="margin-top:8px;">Add Item</button>
         </form>
         <p class="status-text" id="inventory-add-status"></p>
