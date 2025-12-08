@@ -118,6 +118,7 @@ def _serialize_order(o):
     raw_status = _attr(o, "Status", "status", default="")
     return {
         "id": _attr(o, "OrderID", "id", "ID"),
+        "orderNumber": _attr(o, "LocationOrderNumber", default=_attr(o, "OrderID", "id", "ID")),
         "customer_name": _customer_name_attr(o),
         "items": _items_attr(o),
         "status": _normalize_status(raw_status),
@@ -173,6 +174,7 @@ def get_active_orders():
         orders_list.append({
             "id": order.OrderID,
             "orderId": order.OrderID,
+            "orderNumber": order.LocationOrderNumber or order.OrderID,
             "restaurantName": restaurant_name,
             "customer_name": customer_name or "Guest",
             "totalPrice": str(order.TotalPrice),
@@ -209,10 +211,11 @@ def create_order():
     }
 
     try:
-        order_id = place_order_with_items(payload) #Create order via service
+        result = place_order_with_items(payload) #Create order via service
         return jsonify({
             "message": "Order created",
-            "orderId": order_id
+            "orderId": result['order_id'],
+            "orderNumber": result['location_order_number']
         }), 201
 
     except Exception as e:

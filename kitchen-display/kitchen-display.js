@@ -81,7 +81,7 @@ let orders = [];
 
         div.innerHTML = `
           <h3>
-            <span>Order #${order.id}</span>
+            <span>Order #${order.orderNumber || order.id}</span>
             <span>Status: ${order.status}</span>
           </h3>
           <p><strong>Customer:</strong> ${customerName}</p>

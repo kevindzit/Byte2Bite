@@ -522,7 +522,7 @@ async function placeOrder() {
         }
 
         localStorage.removeItem("cart");
-        localStorage.setItem("orderMsg", `Order #${data.order_id} paid and placed for ${label}.`);
+        localStorage.setItem("orderMsg", `Order #${data.location_order_number || data.order_id} paid and placed for ${label}.`);
         window.location.href = "confirmation.html";
       }
     } else {
@@ -559,8 +559,8 @@ async function placeOrder() {
       }
 
       localStorage.removeItem("cart");
-      const msg = data.orderId
-        ? `Order #${data.orderId} placed for ${label}.`
+      const msg = (data.orderNumber || data.orderId)
+        ? `Order #${data.orderNumber || data.orderId} placed for ${label}.`
         : "Your order has been placed.";
       localStorage.setItem("orderMsg", msg);
 
@@ -868,7 +868,7 @@ async function loadCustomerOrders() {
       const items = order.items.map(i => `${i.quantity}× ${i.name}`).join(", ");
       div.className = "menu-item";
       div.innerHTML = `
-        <strong>Order #${order.orderId}</strong><br>
+        <strong>Order #${order.orderNumber || order.orderId}</strong><br>
         ${order.createdAt} • ${order.status}<br>
         ${items}<br>
         Total: $${Number(order.totalPrice || 0).toFixed(2)}

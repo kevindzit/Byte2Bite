@@ -4,6 +4,15 @@ from ..models import Orders, OrderItems, MenuItems, Payments, Customers, Invento
 from .payment_service import create_payment_intent
 
 
+def _get_next_location_order_number(location_id):
+    """Get the next order number for a specific location."""
+    from sqlalchemy import func
+    max_num = db.session.query(func.max(Orders.LocationOrderNumber)).filter(
+        Orders.RestaurantID == location_id
+    ).scalar()
+    return (max_num or 0) + 1
+
+
 def _decrement_inventory(location_id, cart_items):
     """Decrease inventory quantities based on ordered items."""
     for it in cart_items:
@@ -49,12 +58,15 @@ def place_order_with_items(data: dict) -> int:
     discount = Decimal(points_to_redeem) / Decimal(100)
     final_price = max(total_price - discount, Decimal("0.00"))
 
+    loc_order_num = _get_next_location_order_number(location_id)
+
     new_order = Orders(
         CustomerID=customer_id,
         CustomerName=customer_name,
         RestaurantID=location_id,
         TotalPrice=final_price,
-        Status='Pending'
+        Status='Pending',
+        LocationOrderNumber=loc_order_num
     )
 
     db.session.add(new_order)
@@ -94,7 +106,7 @@ def place_order_with_items(data: dict) -> int:
             customer.RewardsPoints = (customer.RewardsPoints or 0) - points_to_redeem + points_earned
             db.session.commit()
 
-    return new_order.OrderID
+    return {'order_id': new_order.OrderID, 'location_order_number': new_order.LocationOrderNumber}
 
 
 #Stripe order creation with payment intent#
@@ -114,12 +126,15 @@ def create_stripe_order(data: dict):
     final_price = max(total_price - discount, Decimal("0.00"))
 
     # Create order with pending payment status
+    loc_order_num = _get_next_location_order_number(location_id)
+
     new_order = Orders(
         CustomerID=customer_id,
         CustomerName=customer_name,
         RestaurantID=location_id,
         TotalPrice=final_price,
-        Status='Pending Payment'
+        Status='Pending Payment',
+        LocationOrderNumber=loc_order_num
     )
 
     db.session.add(new_order)
@@ -157,6 +172,7 @@ def create_stripe_order(data: dict):
         #Returned to frontend to complete payment via Stripe
         return {
             'order_id': new_order.OrderID,
+            'location_order_number': new_order.LocationOrderNumber,
             'client_secret': payment_result['client_secret'],
             'payment_intent_id': payment_result['payment_intent_id'],
             'amount': float(final_price),

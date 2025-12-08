@@ -620,7 +620,7 @@
                         });
 
                         if (confirmResponse.ok) {
-                            showConfirmation(data.order_id);
+                            showConfirmation(data.location_order_number || data.order_id);
                         } else {
                             showError('Order Error', 'Payment successful but order update failed.');
                         }
@@ -640,7 +640,7 @@
 
                     if (response.ok) {
                         const result = await response.json();
-                        showConfirmation(result.orderId || Math.floor(Math.random() * 10000));
+                        showConfirmation(result.orderNumber || result.orderId);
                     } else {
                         alert('Error placing order. Please try again.');
                     }
@@ -765,7 +765,7 @@
                 return `
                     <div class="order-card">
                         <div class="order-header">
-                            <div class="order-number">Order #${order.id || order.orderId}</div>
+                            <div class="order-number">Order #${order.orderNumber || order.id || order.orderId}</div>
                             ${order.created_at ? `<div class="order-time">${formatOrderTime(order.created_at)}</div>` : ''}
                         </div>
                         <div class="order-customer">
@@ -833,7 +833,7 @@
             container.innerHTML = orders.map(order => `
                 <div class="order-card">
                     <div class="order-header">
-                        <div class="order-number">Order #${order.id}</div>
+                        <div class="order-number">Order #${order.orderNumber || order.id}</div>
                         <div class="order-time">${formatOrderTime(order.created_at)}</div>
                     </div>
                     <div class="order-customer">

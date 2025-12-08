@@ -13,11 +13,12 @@ class Orders(db.Model):
     __tablename__ = 'Orders'
     OrderID = db.Column(db.Integer, primary_key=True)
     CustomerID = db.Column(db.Integer, db.ForeignKey('Customers.CustomerID'))
-    CustomerName = db.Column(db.String(100))  # 👈 NEW
+    CustomerName = db.Column(db.String(100))
     RestaurantID = db.Column(db.Integer, db.ForeignKey('Restaurants.RestaurantID'))
     OrderTime = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     TotalPrice = db.Column(db.Numeric(10, 2), nullable=False)
     Status = db.Column(db.String(50), default='Pending')
+    LocationOrderNumber = db.Column(db.Integer)
 
 
 class OrderItems(db.Model):
