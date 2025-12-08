@@ -13,6 +13,20 @@ const LOCATION_MAP = {
   Bolingbrook: 11,
   "Western Springs": 12
 };
+const ZIP_LOCATION_MAP = {
+  Wheaton: ["60187", "60189"],
+  Elmhurst: ["60106", "60126", "60181"],
+  "Oak Brook": ["60523"],
+  "Wood Dale": ["60191"],
+  Roselle: ["60157", "60172"],
+  "Glendale Heights": ["60139"],
+  Bartlett: ["60103", "60177"],
+  "Hoffman Estates": ["60010", "60067", "60169", "60179", "60192", "60195"],
+  Westmont: ["60516", "60523", "60559"],
+  Darien: ["60517", "60561"],
+  Bolingbrook: ["60440", "60446", "60490", "60517", "60565", "60585"],
+  "Western Springs": ["60558"],
+};
 
 let menuItems = [];
 let menuImageMap = null;   
@@ -588,13 +602,47 @@ function selectLocation(label) {
   window.location.href = "menu.html";
 }
 
-function enterZip() {
-  const zip = document.getElementById("zip").value.trim();
-  if (!zip) return alert("Enter ZIP");
+function findLocationByZip(zip) {
+  const normalizedZip = (zip || "").replace(/\D/g, "").slice(0, 5);
+  if (!normalizedZip) return null;
 
-  localStorage.setItem("selectedLocationLabel", `ZIP ${zip}`);
-  localStorage.setItem("selectedLocationId", 1);
-  window.location.href = "menu.html";
+  for (const [location, zips] of Object.entries(ZIP_LOCATION_MAP)) {
+    if (zips.includes(normalizedZip)) return location;
+  }
+  return null;
+}
+
+function enterZip() {
+  const zipInput = document.getElementById("zip");
+  const messageEl = document.getElementById("zipMessage");
+  if (messageEl) {
+    messageEl.textContent = "";
+    messageEl.style.color = "";
+  }
+
+  const zip = zipInput ? zipInput.value.trim() : "";
+  if (!zip) {
+    if (messageEl) {
+      messageEl.textContent = "Enter ZIP";
+      messageEl.style.color = "#b00020";
+    } else {
+      alert("Enter ZIP");
+    }
+    return;
+  }
+
+  const matchedLocation = findLocationByZip(zip);
+  if (!matchedLocation) {
+    if (messageEl) {
+      messageEl.textContent = "No restaurants in your location.";
+      messageEl.style.color = "#b00020";
+    } else {
+      alert("No restaurants in your location.");
+    }
+    return;
+  }
+
+  selectLocation(matchedLocation);
 }
 
 // =====================
