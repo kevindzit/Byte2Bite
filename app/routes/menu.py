@@ -1,13 +1,40 @@
 import json
 import os
 from flask import Blueprint, jsonify, current_app
+from google.cloud import storage
+from datetime import timedelta
 from ..models import MenuItems
+
 
 #Load menu item images from JSON file#
 
 # Load image mappings (fallback if DB missing images)
 IMAGES_PATH = os.path.join(os.path.dirname(__file__), "../../menu_items.json")
 JSON_DATA = {}
+
+# Connect to Google Storage for images
+storage_client = storage.Client()
+BUCKET_NAME = "byte2biteimages"
+
+
+# url creation for images 
+def generate_signed_url_from_url(image_url: str | None):
+    if not image_url:
+        return None
+    try: 
+        bucket = storage_client.bucket(BUCKET_NAME)
+        blob = bucket.blob(image_url)
+
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="GET"
+        )
+        
+        return url
+
+    except Exception as error:
+        current_app.logger.error(f"Error generating signed URL for {image_url}")
 
 try:
     with open(IMAGES_PATH, "r") as f:
@@ -21,7 +48,7 @@ except json.JSONDecodeError:
 
 #Extract image data and default image
 IMAGE_DATA = JSON_DATA.get("menu_items", {})
-DEFAULT_IMAGE = JSON_DATA.get("default_image", "Food.webp")
+DEFAULT_IMAGE = JSON_DATA.get("default_image", None)
 
 bp = Blueprint("menu", __name__)
 
@@ -42,8 +69,33 @@ def get_menu(location_id):
 
         #Build response with image search#
         for i in items:
-            image_url = getattr(i, "ImageURL", None) or IMAGE_DATA.get(i.Name) or DEFAULT_IMAGE
+            db_image_uri = getattr(i, "ImageURI", None) or getattr(i, "ImageURL", None)
+            image_url = None
 
+            if db_image_uri:
+                # db_image_uri should be something like 'carne-asada-tacos.jpeg'
+                image_url = generate_signed_url_from_url(db_image_uri)
+
+            # 2) Fallback: JSON mapping (typically public URL or static name)
+            if not image_url and i.Name in IMAGE_DATA:
+                json_image_value = IMAGE_DATA[i.Name]
+
+                # If JSON value looks like a URL, use as-is
+                if isinstance(json_image_value, str) and json_image_value.startswith("http"):
+                    image_url = json_image_value
+                else:
+                    # Otherwise treat it as a blob name in the same private bucket
+                    image_url = generate_signed_url_from_url(json_image_value) or json_image_value
+
+            # 3) Fallback: default image
+            if not image_url and DEFAULT_IMAGE:
+                if isinstance(DEFAULT_IMAGE, str) and DEFAULT_IMAGE.startswith("http"):
+                    # Default is a public URL
+                    image_url = DEFAULT_IMAGE
+                else:
+                    # Default is a blob name in the private bucket
+                    image_url = generate_signed_url_from_url(DEFAULT_IMAGE) or DEFAULT_IMAGE
+            
             response.append({
                 "id": i.MenuItemID,
                 "name": i.Name,
