@@ -19,7 +19,7 @@
       <div class="header-actions">
         <button class="icon-btn profile-btn" onclick="openAccountModal()">&#128100; Sign In</button>
         <button class="icon-btn customer-cart" onclick="window.location.href='checkout.html'">
-          Cart <span id="cartCount">0</span>
+          &#128722; <span id="cartCount">0</span>
         </button>
       </div>
     </div>
@@ -43,8 +43,6 @@
   <a href="checkout.html">View Cart</a>
   <a href="javascript:void(0)" onclick="scrollToOrderHistory()">Order History</a>
   <a href="help.html">Help</a>
-  <hr id="staff-divider" style="border: 1px solid #333; margin: 10px 0; display: none;">
-  <a id="staff-portal-link" href="../front-of-house-system/foh.html?from=customer" style="display: none;">Staff Portal</a>
 </div>
 
 
@@ -105,38 +103,6 @@ function scrollToOrderHistory() {
   <script>
     initMenuPage();
     loadCustomerOrders();
-
-    // Control Staff Portal visibility
-    function updateStaffPortalVisibility() {
-      const session = getCustomerSession();
-      const staffLink = document.getElementById('staff-portal-link');
-      const staffDivider = document.getElementById('staff-divider');
-
-      // Only show Staff Portal if NOT logged in as a customer
-      if (!session) {
-        staffLink.style.display = 'block';
-        staffDivider.style.display = 'block';
-      } else {
-        staffLink.style.display = 'none';
-        staffDivider.style.display = 'none';
-      }
-    }
-
-    // Update on page load
-    updateStaffPortalVisibility();
-
-    // Also update when login status changes
-    const originalLogin = window.loginCustomer;
-    window.loginCustomer = async function() {
-      await originalLogin();
-      updateStaffPortalVisibility();
-    };
-
-    const originalLogout = window.logoutCustomer;
-    window.logoutCustomer = function() {
-      originalLogout();
-      updateStaffPortalVisibility();
-    };
   </script>
 </body>
 </html>

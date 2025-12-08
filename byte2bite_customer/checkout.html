@@ -96,8 +96,6 @@
     <a href="index.html">Change Location</a>
     <a href="checkout.html">View Cart</a>
     <a href="help.html">Help</a>
-    <hr id="staff-divider" style="border: 1px solid #333; margin: 10px 0; display: none;">
-    <a id="staff-portal-link" href="../front-of-house-system/foh.html?from=customer" style="display: none;">Staff Portal</a>
   </div>
 
   <!-- Overlay -->
@@ -240,17 +238,6 @@
         document.getElementById("customer-name").value = `${session.firstName || ""} ${session.lastName || ""}`.trim();
         // Show rewards section after cart is loaded
         setTimeout(() => window.showRewardsIfApplicable(), 100);
-      }
-
-      // Control Staff Portal visibility
-      const staffLink = document.getElementById('staff-portal-link');
-      const staffDivider = document.getElementById('staff-divider');
-      if (!session) {
-        staffLink.style.display = 'block';
-        staffDivider.style.display = 'block';
-      } else {
-        staffLink.style.display = 'none';
-        staffDivider.style.display = 'none';
       }
     })();
   </script>

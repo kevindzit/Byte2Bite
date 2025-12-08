@@ -468,6 +468,7 @@ input {
   border-radius: 5px;
   border: none;
   font-size: 16px;
+  box-sizing: border-box;
 }
 
 .payment-options {
@@ -660,6 +661,11 @@ input {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #1a1a1a;
+  padding: 12px 0;
 }
 
 .menu-header-bar h2 {

@@ -17,8 +17,14 @@
   <main>
     <section id="admin-lock" class="admin-lock" style="display:none;">
       <h2>Admin Access Required</h2>
-      <p>Please log in as an admin from the Front-of-House screen before opening this dashboard.</p>
-      <button onclick="window.location.href='foh.html'">Go to Front of House</button>
+      <p id="admin-lock-message">Please sign in with admin credentials to access the dashboard.</p>
+      <div class="admin-login-form">
+        <input type="email" id="adminEmail" placeholder="Admin Email">
+        <input type="password" id="adminPassword" placeholder="Password">
+        <button onclick="attemptAdminLogin()">Sign In as Admin</button>
+        <p class="status-text" id="adminLoginStatus"></p>
+      </div>
+      <button onclick="window.location.href='foh.html'" style="margin-top: 15px; background: #666;">Back to Front of House</button>
     </section>
 
     <div id="admin-dashboard" style="display:none;">

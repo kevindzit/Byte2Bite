@@ -726,39 +726,65 @@ async function loginCustomer() {
   statusEl.style.color = "#ffcc00";
 
   try {
+    // Try customer login first
     const res = await fetch(`${API_BASE}/api/customers/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
-    if (!res.ok) {
-      statusEl.textContent = "Login failed. Check email/password.";
-      statusEl.style.color = "#ff6666";
+
+    if (res.ok) {
+      // Customer login succeeded
+      const data = await res.json();
+      saveCustomerSession(data);
+
+      // Show welcome message with user's name
+      const formSection = document.getElementById("accountFormSection");
+      const summarySection = document.getElementById("accountSummarySection");
+      const summaryName = document.getElementById("accountSummaryName");
+
+      if (formSection && summarySection) {
+        formSection.classList.add("hidden");
+        summarySection.classList.remove("hidden");
+        if (summaryName) {
+          summaryName.textContent = `Hi ${data.firstName || 'there'}! You're now signed in.`;
+        }
+
+        // Update the welcome heading
+        const welcomeHeading = summarySection.querySelector("h3");
+        if (welcomeHeading) {
+          welcomeHeading.textContent = `Welcome, ${data.firstName}!`;
+        }
+      }
+
+      loadCustomerOrders();
       return;
     }
-    const data = await res.json();
-    saveCustomerSession(data);
 
-    // Show welcome message with user's name
-    const formSection = document.getElementById("accountFormSection");
-    const summarySection = document.getElementById("accountSummarySection");
-    const summaryName = document.getElementById("accountSummaryName");
+    // Customer login failed - try staff login
+    const staffRes = await fetch(`${API_BASE}/api/staff/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-    if (formSection && summarySection) {
-      formSection.classList.add("hidden");
-      summarySection.classList.remove("hidden");
-      if (summaryName) {
-        summaryName.textContent = `Hi ${data.firstName || 'there'}! You're now signed in.`;
-      }
+    if (staffRes.ok) {
+      // Staff login succeeded - store session and redirect to FOH
+      const staffData = await staffRes.json();
+      localStorage.setItem("staffSession", JSON.stringify(staffData));
+      statusEl.textContent = "Staff login successful. Redirecting...";
+      statusEl.style.color = "#66ff66";
 
-      // Update the welcome heading
-      const welcomeHeading = summarySection.querySelector("h3");
-      if (welcomeHeading) {
-        welcomeHeading.textContent = `Welcome, ${data.firstName}!`;
-      }
+      // Redirect to Front of House
+      setTimeout(() => {
+        window.location.href = "../front-of-house-system/foh.html";
+      }, 500);
+      return;
     }
 
-    loadCustomerOrders();
+    // Both logins failed
+    statusEl.textContent = "Login failed. Check email/password.";
+    statusEl.style.color = "#ff6666";
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Unable to login. Please try again.";

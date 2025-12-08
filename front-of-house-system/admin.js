@@ -1,26 +1,14 @@
 const API_BASE = "http://127.0.0.1:5000";
-    const staffSession = JSON.parse(localStorage.getItem("staffSession") || "null");
+    let staffSession = JSON.parse(localStorage.getItem("staffSession") || "null");
 
     function initDashboard() {
       const lock = document.getElementById("admin-lock");
       const dash = document.getElementById("admin-dashboard");
 
-      // Enhanced security: Verify admin role strictly
+      // Check if user is admin
       if (!staffSession || !staffSession.role || staffSession.role.toLowerCase() !== "admin") {
         lock.style.display = "block";
         dash.style.display = "none";
-
-        // If they're a regular staff member, redirect them back to front-of-house
-        if (staffSession && staffSession.role && staffSession.role.toLowerCase() === "staff") {
-          const redirectMsg = document.createElement("p");
-          redirectMsg.textContent = "Staff members cannot access the admin dashboard. Redirecting to Front of House...";
-          redirectMsg.style.color = "#ff6666";
-          lock.appendChild(redirectMsg);
-
-          setTimeout(() => {
-            window.location.href = "foh.html";
-          }, 2000);
-        }
         return;
       }
 
@@ -32,6 +20,59 @@ const API_BASE = "http://127.0.0.1:5000";
       loadBranches();
       loadStaffList();
       setupStaffLocationFilter();
+    }
+
+    async function attemptAdminLogin() {
+      const email = document.getElementById("adminEmail").value.trim();
+      const password = document.getElementById("adminPassword").value;
+      const statusEl = document.getElementById("adminLoginStatus");
+
+      if (!email || !password) {
+        statusEl.textContent = "Please enter email and password.";
+        statusEl.style.color = "#ff6666";
+        return;
+      }
+
+      statusEl.textContent = "Signing in...";
+      statusEl.style.color = "#ffcc00";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/staff/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (!res.ok) {
+          statusEl.textContent = "Login failed. Check credentials.";
+          statusEl.style.color = "#ff6666";
+          return;
+        }
+
+        const data = await res.json();
+
+        // Check if the account is an admin
+        if (!data.role || data.role.toLowerCase() !== "admin") {
+          statusEl.textContent = "This account does not have admin access.";
+          statusEl.style.color = "#ff6666";
+          return;
+        }
+
+        // Admin login successful - update session and reload
+        localStorage.setItem("staffSession", JSON.stringify(data));
+        staffSession = data;
+        statusEl.textContent = "Admin access granted!";
+        statusEl.style.color = "#66ff66";
+
+        // Reload to show dashboard
+        setTimeout(() => {
+          initDashboard();
+        }, 500);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Server error. Please try again.";
+        statusEl.style.color = "#ff6666";
+      }
     }
 
     function getSelectedBranchId() {
@@ -496,18 +537,6 @@ const API_BASE = "http://127.0.0.1:5000";
     document
       .getElementById("apply-inventory-changes-btn")
       .addEventListener("click", applyInventoryChanges);
-
-    // Check if coming from customer portal or other non-admin context
-    const urlParams = new URLSearchParams(window.location.search);
-    const fromCustomer = urlParams.get('from') === 'customer';
-    const referrer = document.referrer;
-    const isFromCustomerSite = referrer.includes('/byte2bite_customer/') || fromCustomer;
-
-    // For security: Clear session if coming from customer portal
-    if (isFromCustomerSite) {
-      localStorage.removeItem('staffSession');
-      window.location.reload();
-    }
 
     // Init
     initDashboard();

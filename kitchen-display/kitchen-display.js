@@ -3,6 +3,14 @@ let orders = [];
     let lastAction = null;
     let selectedLocation = localStorage.getItem('kitchenDisplayLocation') || '1';
 
+    // Toast notification
+    function showToast(message, duration = 2000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
     // Load list of restaurants/locations
     async function loadRestaurants() {
       try {
@@ -112,6 +120,12 @@ let orders = [];
       const previousIndex = currentIndex;
       const removedOrderSnapshot = { ...currentOrder };
 
+      // Prevent completing an order that isn't in Preparing status
+      if (status === "Completed" && previousStatus.toLowerCase() !== "preparing") {
+        showToast("Mark as Preparing first");
+        return;
+      }
+
       try {
         const res = await fetch(`http://127.0.0.1:5000/api/orders/${id}`, {
           method: "PATCH",
@@ -145,7 +159,7 @@ let orders = [];
         showOrder();
       } catch (err) {
         console.error(err);
-        alert("Error updating order status. Check the console for details.");
+        showToast("Error updating order");
       }
     }
 
@@ -173,7 +187,7 @@ let orders = [];
 
 async function undoLastAction() {
   if (!lastAction) {
-    alert("Nothing to undo yet.");
+    showToast("Nothing to undo");
     return;
   }
 
@@ -212,7 +226,7 @@ async function undoLastAction() {
     showOrder();
   } catch (err) {
     console.error(err);
-    alert("Unable to undo the last action. Check console.");
+    showToast("Unable to undo");
   }
 }
 

@@ -70,7 +70,9 @@
             color: #000;
             padding: 40px 20px;
             text-align: center;
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header h1 {

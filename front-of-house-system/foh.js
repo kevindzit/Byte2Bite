@@ -20,8 +20,8 @@
                 if (info) {
                     info.textContent = `${staffSession.firstName} (${staffSession.role})`;
                 }
-                // Show admin dashboard link for admin users
-                if (adminLink && staffSession.role && staffSession.role.toLowerCase() === 'admin') {
+                // Show admin dashboard link for all logged-in staff
+                if (adminLink) {
                     adminLink.style.display = 'block';
                 }
             } else {
@@ -111,20 +111,6 @@
 
         // Initialize on load
         window.onload = function() {
-            // Check if coming from customer portal (for testing - always require fresh login)
-            const urlParams = new URLSearchParams(window.location.search);
-            const fromCustomer = urlParams.get('from') === 'customer';
-
-            // Check referrer to see if coming from customer site
-            const referrer = document.referrer;
-            const isFromCustomerSite = referrer.includes('/byte2bite_customer/') || fromCustomer;
-
-            // For testing: Always clear staff session if coming from customer portal
-            if (isFromCustomerSite) {
-                localStorage.removeItem('staffSession');
-                staffSession = null;
-            }
-
             loadStaffSession();
             loadRestaurants();
             loadMenu();
@@ -652,11 +638,19 @@
                 const allCurrentOrders = [...activeOrders, ...completedOrders];
 
                 // Sort: Completed at top, then Preparing, then Pending
-                const statusOrder = { 'completed': 0, 'preparing': 1, 'pending': 2 };
                 allCurrentOrders.sort((a, b) => {
                     const statusA = (a.status || '').toLowerCase();
                     const statusB = (b.status || '').toLowerCase();
-                    return (statusOrder[statusA] || 999) - (statusOrder[statusB] || 999);
+
+                    // Completed orders first (ready to be marked as delivered)
+                    if (statusA === 'completed' && statusB !== 'completed') return -1;
+                    if (statusB === 'completed' && statusA !== 'completed') return 1;
+
+                    // Then Preparing orders
+                    if (statusA === 'preparing' && statusB === 'pending') return -1;
+                    if (statusB === 'preparing' && statusA === 'pending') return 1;
+
+                    return 0;
                 });
 
                 displayCurrentOrders(allCurrentOrders);

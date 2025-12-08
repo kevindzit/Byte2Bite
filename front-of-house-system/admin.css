@@ -176,3 +176,21 @@ body {
     padding: 20px;
     margin-bottom: 20px;
   }
+
+  .admin-login-form {
+    max-width: 300px;
+    margin: 20px auto;
+  }
+
+  .admin-login-form input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+
+  .admin-login-form button {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+  }
