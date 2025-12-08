@@ -318,3 +318,22 @@ body {
     outline: none;
     border-color: #f5b12a;
   }
+
+  /* image layout and item name layout*/
+  .name-with-image {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.name-with-image input {
+    flex: 1;
+}
+
+.menu-preview {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #444;
+}

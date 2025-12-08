@@ -426,14 +426,32 @@ const API_BASE = "http://127.0.0.1:5000";
         data.forEach(item => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td><input type="text" value="${item.name}" id="name-${item.id}"></td>
+            <td>
+              <div class="name-with-image">
+                <input 
+                    type="text" 
+                    value="${item.name}" 
+                    id="name-${item.id}"
+                    class="name-input"
+                >
+                <img 
+                    src="${item.image}" 
+                    id="preview-${item.id}" 
+                    class="menu-preview"
+                >
+              </div>
+            </td>
             <td><input type="text" value="${item.description || ""}" id="desc-${item.id}"></td>
             <td><input type="number" step="0.01" value="${item.price}" id="price-${item.id}" class="small-input"></td>
             <td><input type="text" value="${item.category || ""}" id="cat-${item.id}"></td>
+
             <td style="text-align:center;">
               <input type="checkbox" ${item.available ? "checked" : ""} id="avail-${item.id}">
             </td>
+
             <td>
+              <input type="file" id="file-${item.id}" accept="image/*" style="margin-bottom:4px;">
+              <button type="button" onclick="uploadMenuItemImage(${item.id})">Upload</button>
               <button type="button" onclick="saveMenuItem(${item.id})">Save</button>
             </td>
           `;
@@ -448,6 +466,44 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
+    // =======================
+    // Upload Menu Item Image
+    // =======================
+    async function uploadMenuItemImage(itemId) {
+        const fileInput = document.getElementById(`file-${itemId}`);
+        const file = fileInput?.files?.[0];
+
+        if (!file) {
+            alert("Please choose an image first.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("image_file", file);
+
+        const res = await fetch(`${API_BASE}/api/admin/menu-items/${itemId}/image`, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.error || "Error uploading image.");
+            return;
+        }
+
+        // Update preview image
+        const img = document.getElementById(`preview-${itemId}`);
+        if (img && data.signedUrl) {
+            img.src = data.signedUrl;
+        }
+
+        alert("Image updated!");
+    }
+    // =======================
+    // Save menu Item Function
+    // =======================
     async function saveMenuItem(id) {
       const name = document.getElementById(`name-${id}`).value;
       const description = document.getElementById(`desc-${id}`).value;
@@ -475,7 +531,9 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
+    // ==========================
     // Staff Management Functions
+    // ==========================
     let allStaff = [];
     let restaurants = [];
 

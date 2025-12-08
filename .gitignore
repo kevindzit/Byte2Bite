@@ -13,6 +13,7 @@ __pycache__/
 
 # Google Cloud service account key
 app/service-account-key.json
+app/service-account-key1.json
 
 # Security documentation (contains sensitive info)
 ACCESS_CONTROL_SUMMARY.md

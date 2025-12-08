@@ -2,6 +2,8 @@ import secrets
 from flask import Blueprint, jsonify, request, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
+from datetime import timedelta
+from google.cloud import storage
 from ..extensions import db
 from ..models import (
     Orders,
@@ -13,11 +15,42 @@ from ..models import (
     StaffUsers,
 )
 
+
 bp = Blueprint("admin", __name__)
 
 #In-memory session store for staff login
 #Maps sessionToken -> StaffID
 _staff_sessions: dict[str, int] = {}
+
+storage_client = storage.Client()
+BUCKET_NAME = "byte2biteimages"
+
+
+# Upload image to google storage
+def upload_to_gcs(file_obj, dest_path: str) -> str:
+    bucket = storage_client.bucket(BUCKET_NAME)
+    blob = bucket.blob(dest_path)
+    blob.upload_from_file(file_obj, content_type=file_obj.mimetype)
+    return dest_path  # store this in ImageURL / ImageURI
+
+
+# Generate url for image in google storage
+def generate_signed_url_for_blob(blob_name: str | None) -> str | None:
+    if not blob_name:
+        return None
+
+    try:
+        bucket = storage_client.bucket(BUCKET_NAME)
+        blob = bucket.blob(blob_name)
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="GET",
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error generating signed URL in admin: {e}")
+        return None
+    
 
 # Helper Functions #
 
@@ -362,8 +395,10 @@ def update_menu_item(item_id: int):
         "price": "Price",
         "category": "Category",
         "available": "IsAvailable",
+        "imageUrl": "ImageURL",
     }
-    #Apply updates
+
+    # Apply updates
     for json_key, attr in field_map.items():
         if json_key in data:
             value = data[json_key]
@@ -383,9 +418,43 @@ def update_menu_item(item_id: int):
             "price": float(item.Price),
             "category": item.Category,
             "available": item.IsAvailable,
+            "imageUrl": item.ImageURL,
             "message": "Menu item updated",
         }
     )
+
+
+# Upload image 
+@bp.post("/admin/menu-items/<int:item_id>/image")
+def upload_menu_item_image(item_id: int):
+    item = MenuItems.query.get_or_404(item_id)
+
+    image_file = request.files.get("image_file")
+    if not image_file or image_file.filename == "":
+        return jsonify({"error": "No image file provided"}), 400
+
+    # Build a blob name like: menu/menuitem_1_Carne-Asada-Tacos.jpeg
+    safe_name = (item.Name or "menu_item").strip().replace(" ", "-")
+    ext = os.path.splitext(image_file.filename)[1]
+    dest_path = f"menu/menuitem_{item.MenuItemID}_{safe_name}{ext}"
+
+    blob_name = upload_to_gcs(image_file, dest_path)
+
+    # Store the blob name in ImageURI so menu.py can sign it
+    item.ImageURI = blob_name
+    db.session.commit()
+
+    signed_url = generate_signed_url_for_blob(blob_name)
+
+    return jsonify(
+        {
+            "id": item.MenuItemID,
+            "name": item.Name,
+            "imageUri": item.ImageURI,
+            "imageURL": signed_url,
+            "message": "Menu item image updated",
+        }
+    ), 200
 
 
 @bp.post("/staff/login")
