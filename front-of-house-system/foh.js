@@ -9,6 +9,38 @@
         let staffSession = null;
         let rewardsApplied = false;
 
+        // Stripe variables
+        let fohStripe = null;
+        let fohCardElement = null;
+
+        // Initialize Stripe for card payments
+        async function initFohStripe() {
+            if (fohStripe) return;
+
+            try {
+                const res = await fetch('http://127.0.0.1:5000/api/stripe-key');
+                const data = await res.json();
+                fohStripe = Stripe(data.publishable_key);
+                const elements = fohStripe.elements();
+                fohCardElement = elements.create('card', {
+                    style: {
+                        base: {
+                            fontSize: '18px',
+                            color: '#32325d',
+                        }
+                    }
+                });
+                fohCardElement.mount('#foh-card-element');
+
+                fohCardElement.on('change', event => {
+                    const displayError = document.getElementById('foh-card-errors');
+                    displayError.textContent = event.error ? event.error.message : '';
+                });
+            } catch (error) {
+                console.error('Error initializing Stripe:', error);
+            }
+        }
+
         function loadStaffSession() {
             staffSession = JSON.parse(localStorage.getItem('staffSession') || 'null');
             const overlay = document.getElementById('staffLoginOverlay');
@@ -401,6 +433,20 @@
                 btn.classList.remove('selected');
             });
             event.currentTarget.classList.add('selected');
+
+            // Show/hide appropriate input section
+            const cashSection = document.getElementById('cash-input-section');
+            const cardSection = document.getElementById('card-input-section');
+
+            if (method === 'Card') {
+                cashSection.style.display = 'none';
+                cardSection.style.display = 'block';
+                initFohStripe();
+            } else {
+                cashSection.style.display = 'block';
+                cardSection.style.display = 'none';
+            }
+
             updatePaymentDisplay();
         }
 
@@ -521,7 +567,12 @@
 
             try {
                 if (paymentMethod === 'Card') {
-                    // Card payment with Stripe (for test mode)
+                    // Card payment with Stripe
+                    if (!fohStripe || !fohCardElement) {
+                        showError('Payment Error', 'Card payment is not ready. Please try again.');
+                        return;
+                    }
+
                     const response = await fetch('http://127.0.0.1:5000/api/orders/stripe-payment', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -529,35 +580,50 @@
                     });
 
                     if (!response.ok) {
-                        alert('Error creating payment. Please try again.');
+                        showError('Payment Error', 'Unable to process payment. Please try again.');
                         return;
                     }
 
                     const data = await response.json();
 
                     if (data.error) {
-                        alert(data.error);
+                        showError('Payment Error', data.error);
                         return;
                     }
 
-                    // For POS terminal simulation - auto-confirm payment
-                    alert('Processing card payment...');
-
-                    // In real POS, this would integrate with card reader
-                    // For test mode, we'll simulate successful payment
-                    const confirmResponse = await fetch(`http://127.0.0.1:5000/api/orders/${data.order_id}/confirm-payment`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            payment_intent_id: data.payment_intent_id,
-                            points_redeemed: pointsToRedeem
-                        })
+                    // Process payment with Stripe card element
+                    const { paymentIntent, error } = await fohStripe.confirmCardPayment(data.client_secret, {
+                        payment_method: {
+                            card: fohCardElement
+                        }
                     });
 
-                    if (confirmResponse.ok) {
-                        showConfirmation(data.order_id);
-                    } else {
-                        alert('Payment failed. Please try again.');
+                    if (error) {
+                        // Check if card was declined or invalid
+                        if (error.code === 'card_declined') {
+                            showError('Card Declined', 'Your card was declined. Please try a different card.');
+                        } else {
+                            showError('Invalid Card', 'Please check your card details and try again.');
+                        }
+                        return;
+                    }
+
+                    if (paymentIntent.status === 'succeeded') {
+                        // Confirm payment on backend
+                        const confirmResponse = await fetch(`http://127.0.0.1:5000/api/orders/${data.order_id}/confirm-payment`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                payment_intent_id: paymentIntent.id,
+                                points_redeemed: pointsToRedeem
+                            })
+                        });
+
+                        if (confirmResponse.ok) {
+                            showConfirmation(data.order_id);
+                        } else {
+                            showError('Order Error', 'Payment successful but order update failed.');
+                        }
                     }
                 } else {
                     // Cash payment (existing flow)
@@ -581,13 +647,23 @@
                 }
             } catch (error) {
                 console.error('Error submitting order:', error);
-                alert('Error submitting order. Please try again.');
+                showError('Error', 'Something went wrong. Please try again.');
             }
         }
 
         function showConfirmation(orderId) {
             document.getElementById('orderNumber').textContent = orderId;
             document.getElementById('confirmationModal').classList.add('active');
+        }
+
+        function showError(title, message) {
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorModal').classList.add('active');
+        }
+
+        function closeErrorModal() {
+            document.getElementById('errorModal').classList.remove('active');
         }
 
         function startNewOrder() {
@@ -611,6 +687,12 @@
             if (discountLine) {
                 discountLine.style.display = 'none';
             }
+
+            // Reset payment method selection to Cash
+            document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelector('.payment-method-btn').classList.add('selected');
+            document.getElementById('cash-input-section').style.display = 'block';
+            document.getElementById('card-input-section').style.display = 'none';
 
             document.getElementById('confirmationModal').classList.remove('active');
             updateCart();

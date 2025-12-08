@@ -626,6 +626,15 @@
             background-color: #5a4a7d;
         }
 
+        /* Error Modal */
+        .error-modal {
+            border-top: 4px solid #d32f2f;
+        }
+
+        .error-title {
+            color: #d32f2f !important;
+        }
+
         /* Menu Drawer */
         .menu-drawer {
             position: fixed;

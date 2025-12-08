@@ -27,7 +27,7 @@ def create_payment_intent(amount_decimal, order_id, customer_email=None):
             'client_secret': intent.client_secret,
             'payment_intent_id': intent.id
         }
-    except stripe.error.StripeError as e:
+    except Exception as e:
         #Any Stripe-specific errors
         return {'success': False, 'error': str(e)}
 

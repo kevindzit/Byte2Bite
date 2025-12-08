@@ -110,22 +110,30 @@
                 </div>
             </div>
 
-            <div class="numpad">
-                <button class="numpad-btn" onclick="addDigit('1')">1</button>
-                <button class="numpad-btn" onclick="addDigit('2')">2</button>
-                <button class="numpad-btn" onclick="addDigit('3')">3</button>
-                <button class="numpad-btn" onclick="addDigit('4')">4</button>
-                <button class="numpad-btn" onclick="addDigit('5')">5</button>
-                <button class="numpad-btn" onclick="addDigit('6')">6</button>
-                <button class="numpad-btn" onclick="addDigit('7')">7</button>
-                <button class="numpad-btn" onclick="addDigit('8')">8</button>
-                <button class="numpad-btn" onclick="addDigit('9')">9</button>
-                <button class="numpad-btn clear" onclick="clearAmount()">⌫</button>
-                <button class="numpad-btn" onclick="addDigit('0')">0</button>
-                <button class="numpad-btn" onclick="addDigit('.')">.</button>
+            <div id="cash-input-section">
+                <div class="numpad">
+                    <button class="numpad-btn" onclick="addDigit('1')">1</button>
+                    <button class="numpad-btn" onclick="addDigit('2')">2</button>
+                    <button class="numpad-btn" onclick="addDigit('3')">3</button>
+                    <button class="numpad-btn" onclick="addDigit('4')">4</button>
+                    <button class="numpad-btn" onclick="addDigit('5')">5</button>
+                    <button class="numpad-btn" onclick="addDigit('6')">6</button>
+                    <button class="numpad-btn" onclick="addDigit('7')">7</button>
+                    <button class="numpad-btn" onclick="addDigit('8')">8</button>
+                    <button class="numpad-btn" onclick="addDigit('9')">9</button>
+                    <button class="numpad-btn clear" onclick="clearAmount()">⌫</button>
+                    <button class="numpad-btn" onclick="addDigit('0')">0</button>
+                    <button class="numpad-btn" onclick="addDigit('.')">.</button>
+                </div>
             </div>
 
-            <button class="complete-btn" onclick="completeOrder()">Complete</button>
+            <div id="card-input-section" style="display:none; padding: 20px;">
+                <div style="margin-bottom: 15px; font-weight: bold; color: #333;">Enter Card Details</div>
+                <div id="foh-card-element" style="border: 1px solid #ccc; padding: 15px; border-radius: 4px; background: #fff;"></div>
+                <div id="foh-card-errors" style="color: red; margin-top: 10px; min-height: 20px;"></div>
+            </div>
+
+            <button type="button" class="complete-btn" onclick="completeOrder()">Complete</button>
         </div>
     </div>
 
@@ -171,6 +179,14 @@
             <div class="modal-title">✓ Order Placed Successfully!</div>
             <div class="modal-message">Order #<span id="orderNumber">0</span> has been sent to the kitchen.</div>
             <button class="modal-btn" onclick="startNewOrder()">New Order</button>
+        </div>
+    </div>
+
+    <div id="errorModal" class="modal">
+        <div class="modal-content error-modal">
+            <div class="modal-title error-title" id="errorTitle">Payment Error</div>
+            <div class="modal-message" id="errorMessage">Please check your card details and try again.</div>
+            <button class="modal-btn" onclick="closeErrorModal()">OK</button>
         </div>
     </div>
 

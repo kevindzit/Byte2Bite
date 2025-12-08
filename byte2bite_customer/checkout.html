@@ -85,7 +85,7 @@
         <div id="card-errors" style="color: red; margin: 10px 0;"></div>
       </div>
 
-      <button id="place-order-btn" class="place-order-btn" onclick="placeOrder()">Place Order</button>
+      <button type="button" id="place-order-btn" class="place-order-btn" onclick="placeOrder()">Place Order</button>
     </div>
   </main>
 
@@ -113,8 +113,8 @@
 
     // Make cartTotal a window property so loadCart can update it
     window.cartTotal = 0;
-    let stripe = null;
-    let cardElement = null;
+    window.stripe = null;
+    window.cardElement = null;
     let paymentMethod = 'in-store';
     window.rewardsApplied = false;
     window.availablePoints = 0;
@@ -172,9 +172,9 @@
     async function initStripe() {
       const res = await fetch(`${API_BASE}/api/stripe-key`);
       const data = await res.json();
-      stripe = Stripe(data.publishable_key);
-      const elements = stripe.elements();
-      cardElement = elements.create('card', {
+      window.stripe = Stripe(data.publishable_key);
+      const elements = window.stripe.elements();
+      window.cardElement = elements.create('card', {
         style: {
           base: {
             fontSize: '16px',
@@ -182,9 +182,9 @@
           }
         }
       });
-      cardElement.mount('#card-element');
+      window.cardElement.mount('#card-element');
 
-      cardElement.on('change', event => {
+      window.cardElement.on('change', event => {
         const displayError = document.getElementById('card-errors');
         displayError.textContent = event.error ? event.error.message : '';
       });
@@ -198,7 +198,7 @@
       if (paymentMethod === 'online') {
         container.style.display = 'block';
         btn.textContent = 'Complete Payment';
-        if (!stripe) initStripe();
+        if (!window.stripe) initStripe();
       } else {
         container.style.display = 'none';
         btn.textContent = 'Place Order';
