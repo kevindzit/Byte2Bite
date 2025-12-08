@@ -1,4 +1,4 @@
-import secrets
+import secrets, os
 from flask import Blueprint, jsonify, request, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
@@ -424,7 +424,7 @@ def update_menu_item(item_id: int):
     )
 
 
-# Upload image 
+# Upload image to Google Storage
 @bp.post("/admin/menu-items/<int:item_id>/image")
 def upload_menu_item_image(item_id: int):
     item = MenuItems.query.get_or_404(item_id)
