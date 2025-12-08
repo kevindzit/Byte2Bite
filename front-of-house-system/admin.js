@@ -1,18 +1,63 @@
 const API_BASE = "http://127.0.0.1:5000";
     let staffSession = JSON.parse(localStorage.getItem("staffSession") || "null");
 
-    function logoutAdmin() {
+    // --- Admin inactivity timeout settings ---
+    const ADMIN_TIMEOUT_MS = 15 * 60 * 1000;   // 15 minutes
+
+    let adminLastActivity = Date.now();
+    let adminIdleTimer = null;
+
+    function markAdminActivity() {
+      adminLastActivity = Date.now();
+    }
+
+    function startAdminIdleTimer() {
+      if (adminIdleTimer) return; // already running
+
+      adminLastActivity = Date.now();
+
+      // Any user interaction counts as activity
+      ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(evt => {
+        window.addEventListener(evt, markAdminActivity, { passive: true });
+      });
+
+      adminIdleTimer = setInterval(() => {
+        // Only enforce timeout if an admin is actually logged in
+        if (!staffSession || !staffSession.role || staffSession.role.toLowerCase() !== "admin") {
+          return;
+        }
+
+        const now = Date.now();
+        if (now - adminLastActivity >= ADMIN_TIMEOUT_MS) {
+          // Time's up – force logout with timeout message
+          performAdminLogout("Your admin session has timed out due to inactivity. Please sign in again.");
+        }
+      });
+    }
+
+    function performAdminLogout(message) {
       // Clear stored session
       localStorage.removeItem("staffSession");
       staffSession = null;
 
-      // Show login section, hide dashboard
+      // Stop idle timer (optional, but clean)
+      if (adminIdleTimer) {
+        clearInterval(adminIdleTimer);
+        adminIdleTimer = null;
+      }
+
       const lock = document.getElementById("admin-lock");
       const dash = document.getElementById("admin-dashboard");
       if (lock) lock.style.display = "block";
       if (dash) dash.style.display = "none";
 
-      // Clear any old login messages/fields
+      // Show message in lock area if provided
+      const lockMsg = document.getElementById("admin-lock-message");
+      if (lockMsg && message) {
+        lockMsg.textContent = message;
+      }
+
+      // Clear old login status + fields
       const statusEl = document.getElementById("adminLoginStatus");
       if (statusEl) statusEl.textContent = "";
 
@@ -20,6 +65,11 @@ const API_BASE = "http://127.0.0.1:5000";
       const passInput = document.getElementById("adminPassword");
       if (emailInput) emailInput.value = "";
       if (passInput) passInput.value = "";
+    }
+
+    // Used by the "Log Out" button (manual logout)
+    function logoutAdmin() {
+      performAdminLogout("You have been logged out.");
     }
 
     function initDashboard() {
@@ -41,6 +91,7 @@ const API_BASE = "http://127.0.0.1:5000";
       loadBranches();
       loadStaffList();
       setupStaffLocationFilter();
+      startAdminIdleTimer();
     }
 
     async function attemptAdminLogin() {
@@ -88,7 +139,9 @@ const API_BASE = "http://127.0.0.1:5000";
         // Reload to show dashboard
         setTimeout(() => {
           initDashboard();
+          startAdminIdleTimer();
         }, 500);
+
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Server error. Please try again.";
@@ -164,6 +217,7 @@ const API_BASE = "http://127.0.0.1:5000";
             <th>Unit</th>
             <th>Adjust (+/–)</th>
             <th>Set To</th>
+            <th>Remove</th>
           </tr>
         `;
 
@@ -186,7 +240,14 @@ const API_BASE = "http://127.0.0.1:5000";
             <td>
               <input type="number" class="inv-setto-input small-input" placeholder="${i.quantity}">
             </td>
-          `;
+            <td>
+              <button 
+                type="button" 
+                class="delete-btn" 
+                onclick="deleteInventoryItem(${i.id})">
+                Remove
+              </button>
+            </td>`;
           table.appendChild(tr);
         });
 
@@ -329,6 +390,46 @@ const API_BASE = "http://127.0.0.1:5000";
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error restocking items.";
+      }
+    }
+
+    async function deleteInventoryItem(id) {
+      const statusEl = document.getElementById("inventory-changes-status");
+
+      // Try to grab the name from the row for a nicer confirm message
+      const row = document.querySelector(`#inventory-container tr[data-id="${id}"]`);
+      let itemName = "this item";
+      if (row) {
+        const nameCell = row.querySelector("td");
+        if (nameCell && nameCell.textContent.trim()) {
+          itemName = nameCell.textContent.trim();
+        }
+      }
+
+      const confirmed = await showConfirm(
+        `Remove inventory item "${itemName}"? This cannot be undone.`
+      );
+      if (!confirmed) return;
+
+      statusEl.textContent = "Removing item...";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/inventory/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.error || "Error removing item.";
+          return;
+        }
+
+        statusEl.textContent = data.message || "Item removed.";
+        await loadInventory();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error removing item.";
       }
     }
 
@@ -898,6 +999,14 @@ const API_BASE = "http://127.0.0.1:5000";
     document
       .getElementById("apply-inventory-changes-btn")
       .addEventListener("click", applyInventoryChanges);
+
+    // Refresh Edit Menu Items section
+    const menuRefreshBtn = document.getElementById("menu-edit-refresh-btn");
+    if (menuRefreshBtn) {
+      menuRefreshBtn.addEventListener("click", () => {
+        loadMenuForEditing();
+      });
+    }
 
     // Edit Staff Modal event listeners
     document
