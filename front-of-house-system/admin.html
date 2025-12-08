@@ -127,6 +127,41 @@
     </section>
     </div>
   </main>
+  <div id="confirm-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <p id="confirm-modal-message">Are you sure?</p>
+      <div class="modal-buttons">
+        <button id="confirm-modal-ok">OK</button>
+        <button id="confirm-modal-cancel" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="edit-staff-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box edit-staff-modal-box">
+      <h3 style="margin-top: 0; color: #f5b12a;">Edit Staff Member</h3>
+      <input type="hidden" id="edit-staff-id">
+      <label>First Name<input type="text" id="edit-staff-first"></label>
+      <label>Last Name<input type="text" id="edit-staff-last"></label>
+      <label>Email<input type="email" id="edit-staff-email"></label>
+      <label>New Password<input type="password" id="edit-staff-password" placeholder="Leave blank to keep current"></label>
+      <label>Role
+        <select id="edit-staff-role">
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </label>
+      <label>Location
+        <select id="edit-staff-location"></select>
+      </label>
+      <p class="status-text" id="edit-staff-status"></p>
+      <div class="modal-buttons" style="margin-top: 15px;">
+        <button id="edit-staff-save">Save Changes</button>
+        <button id="edit-staff-cancel" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="admin.js"></script>
 </body>
 </html>

@@ -451,6 +451,79 @@ def get_all_staff():
     return jsonify(staff_list)
 
 
+@bp.patch("/staff/<int:staff_id>")
+def update_staff(staff_id: int):
+    """Admin-only: updates a staff member's details."""
+    data = request.get_json(force=True)
+    session_token = data.get("sessionToken")
+
+    if not _require_admin_session(session_token):
+        return jsonify({"message": "Admin session required"}), 403
+
+    staff = StaffUsers.query.get_or_404(staff_id)
+
+    if "firstName" in data:
+        staff.FirstName = (data["firstName"] or "").strip()
+
+    if "lastName" in data:
+        staff.LastName = (data["lastName"] or "").strip()
+
+    if "email" in data:
+        new_email = (data["email"] or "").strip().lower()
+        # Check for duplicate email (excluding current staff)
+        existing = StaffUsers.query.filter(
+            func.lower(StaffUsers.Email) == new_email,
+            StaffUsers.StaffID != staff_id
+        ).first()
+        if existing:
+            return jsonify({"message": "Email already in use"}), 400
+        staff.Email = new_email
+
+    if "password" in data and data["password"]:
+        staff.PasswordHash = generate_password_hash(data["password"])
+
+    if "role" in data:
+        role = (data["role"] or "staff").lower()
+        if role in {"staff", "admin"}:
+            staff.Role = role
+
+    if "restaurantId" in data:
+        rid = data["restaurantId"]
+        staff.RestaurantID = int(rid) if rid else None
+
+    db.session.commit()
+
+    # Get restaurant name for response
+    restaurant_name = "Unassigned"
+    if staff.RestaurantID:
+        restaurant = Restaurants.query.get(staff.RestaurantID)
+        if restaurant:
+            restaurant_name = restaurant.Name
+
+    payload = _serialize_staff(staff)
+    payload["restaurantName"] = restaurant_name
+    payload["message"] = "Staff member updated"
+    return jsonify(payload)
+
+
+@bp.delete("/staff/<int:staff_id>")
+def delete_staff(staff_id: int):
+    """Admin-only: deletes a staff member."""
+    data = request.get_json(force=True) if request.data else {}
+    session_token = data.get("sessionToken") or request.args.get("sessionToken")
+
+    if not _require_admin_session(session_token):
+        return jsonify({"message": "Admin session required"}), 403
+
+    staff = StaffUsers.query.get_or_404(staff_id)
+    name = f"{staff.FirstName} {staff.LastName}"
+
+    db.session.delete(staff)
+    db.session.commit()
+
+    return jsonify({"message": f"Deleted staff member: {name}"})
+
+
 @bp.post("/staff")
 def create_staff():
     """Admin-only: creates a new staff member or admin account."""

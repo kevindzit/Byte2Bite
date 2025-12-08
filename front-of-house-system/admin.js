@@ -246,13 +246,45 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
+    function showConfirm(message) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById("confirm-modal");
+        const msgEl = document.getElementById("confirm-modal-message");
+        const okBtn = document.getElementById("confirm-modal-ok");
+        const cancelBtn = document.getElementById("confirm-modal-cancel");
+
+        msgEl.textContent = message;
+        modal.style.display = "flex";
+
+        function cleanup() {
+          modal.style.display = "none";
+          okBtn.removeEventListener("click", onOk);
+          cancelBtn.removeEventListener("click", onCancel);
+        }
+
+        function onOk() {
+          cleanup();
+          resolve(true);
+        }
+
+        function onCancel() {
+          cleanup();
+          resolve(false);
+        }
+
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+      });
+    }
+
     async function restockAll() {
       const branchId = getSelectedBranchId();
       const statusEl = document.getElementById("inventory-changes-status");
       const quantityInput = document.getElementById("restock-quantity");
       const quantity = parseInt(quantityInput.value, 10) || 100;
 
-      if (!confirm(`Reset ALL inventory items to ${quantity} for this location?`)) {
+      const confirmed = await showConfirm(`Reset ALL inventory items to ${quantity} for this location?`);
+      if (!confirmed) {
         return;
       }
 
@@ -483,16 +515,23 @@ const API_BASE = "http://127.0.0.1:5000";
             <th>Email</th>
             <th>Role</th>
             <th>Location</th>
+            <th>Actions</th>
           </tr>
         `;
 
         filteredStaff.forEach(staff => {
           const tr = document.createElement("tr");
+          tr.dataset.staffId = staff.id;
+
           tr.innerHTML = `
             <td>${staff.firstName} ${staff.lastName}</td>
             <td>${staff.email}</td>
             <td>${staff.role}</td>
             <td>${staff.restaurantName}</td>
+            <td class="staff-actions">
+              <button type="button" class="edit-btn" onclick="openEditStaffModal(${staff.id})">Edit</button>
+              <button type="button" class="delete-btn" onclick="deleteStaff(${staff.id})">Delete</button>
+            </td>
           `;
           table.appendChild(tr);
         });
@@ -502,6 +541,128 @@ const API_BASE = "http://127.0.0.1:5000";
       } catch (err) {
         console.error(err);
         container.innerHTML = "<p>Error loading staff members.</p>";
+      }
+    }
+
+    function openEditStaffModal(staffId) {
+      const staff = allStaff.find(s => s.id === staffId);
+      if (!staff) {
+        alert("Staff member not found.");
+        return;
+      }
+
+      // Populate form fields
+      document.getElementById("edit-staff-id").value = staff.id;
+      document.getElementById("edit-staff-first").value = staff.firstName;
+      document.getElementById("edit-staff-last").value = staff.lastName;
+      document.getElementById("edit-staff-email").value = staff.email;
+      document.getElementById("edit-staff-password").value = "";
+      document.getElementById("edit-staff-role").value = staff.role;
+
+      // Populate location dropdown
+      const locationSelect = document.getElementById("edit-staff-location");
+      locationSelect.innerHTML = `<option value="">Unassigned</option>`;
+      restaurants.forEach(r => {
+        const opt = document.createElement("option");
+        opt.value = r.id;
+        opt.textContent = r.name;
+        if (staff.restaurantId === r.id) opt.selected = true;
+        locationSelect.appendChild(opt);
+      });
+
+      // Clear status
+      document.getElementById("edit-staff-status").textContent = "";
+
+      // Show modal
+      document.getElementById("edit-staff-modal").style.display = "flex";
+    }
+
+    function closeEditStaffModal() {
+      document.getElementById("edit-staff-modal").style.display = "none";
+    }
+
+    async function saveStaffFromModal() {
+      const staffId = document.getElementById("edit-staff-id").value;
+      const statusEl = document.getElementById("edit-staff-status");
+
+      const payload = {
+        firstName: document.getElementById("edit-staff-first").value.trim(),
+        lastName: document.getElementById("edit-staff-last").value.trim(),
+        email: document.getElementById("edit-staff-email").value.trim(),
+        role: document.getElementById("edit-staff-role").value,
+        restaurantId: document.getElementById("edit-staff-location").value || null,
+        sessionToken: staffSession.sessionToken
+      };
+
+      // Only include password if provided
+      const password = document.getElementById("edit-staff-password").value;
+      if (password) {
+        payload.password = password;
+      }
+
+      if (!payload.firstName || !payload.lastName || !payload.email) {
+        statusEl.textContent = "Name and email are required.";
+        statusEl.style.color = "#ff6666";
+        return;
+      }
+
+      statusEl.textContent = "Saving...";
+      statusEl.style.color = "#ffcc00";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/staff/${staffId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.message || "Error updating staff member.";
+          statusEl.style.color = "#ff6666";
+          return;
+        }
+
+        statusEl.textContent = "Staff member updated!";
+        statusEl.style.color = "#66ff66";
+
+        // Close modal and refresh list after short delay
+        setTimeout(() => {
+          closeEditStaffModal();
+          loadStaffList();
+        }, 1000);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error updating staff member.";
+        statusEl.style.color = "#ff6666";
+      }
+    }
+
+    async function deleteStaff(staffId) {
+      const staff = allStaff.find(s => s.id === staffId);
+      if (!staff) return;
+
+      const confirmed = await showConfirm(`Delete staff member "${staff.firstName} ${staff.lastName}"? This cannot be undone.`);
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/staff/${staffId}?sessionToken=${encodeURIComponent(staffSession.sessionToken)}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionToken: staffSession.sessionToken }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.message || "Error deleting staff member.");
+          return;
+        }
+
+        // Refresh the list
+        loadStaffList();
+      } catch (err) {
+        console.error(err);
+        alert("Error deleting staff member.");
       }
     }
 
@@ -607,6 +768,15 @@ const API_BASE = "http://127.0.0.1:5000";
     document
       .getElementById("apply-inventory-changes-btn")
       .addEventListener("click", applyInventoryChanges);
+
+    // Edit Staff Modal event listeners
+    document
+      .getElementById("edit-staff-save")
+      .addEventListener("click", saveStaffFromModal);
+
+    document
+      .getElementById("edit-staff-cancel")
+      .addEventListener("click", closeEditStaffModal);
 
     // Init
     initDashboard();
