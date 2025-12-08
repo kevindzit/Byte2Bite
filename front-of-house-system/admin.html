@@ -12,6 +12,9 @@
   <header>
     <a href="foh.html">← Front of House</a>
     <h1>Mi Casa – Admin Dashboard</h1>
+    <button id="admin-logout-btn" class="logout-btn" style="margin-left:auto;">
+      Log Out
+    </button>
   </header>
 
   <main>
@@ -71,13 +74,13 @@
             <input type="text" id="add-item-unit" placeholder="pcs, lbs, cases..." />
           </label>
 
-          <!-- NEW: Also create menu item toggle -->
+          <!-- Create menu item toggle -->
           <label style="margin-top: 8px; display:block;">
             <input type="checkbox" id="add-item-create-menu">
             Also create a menu item for this inventory item
           </label>
 
-          <!-- NEW: extra fields for MenuItems -->
+          <!-- Extra fields for MenuItems -->
           <div id="add-menu-extra" style="display:none; margin-top:8px;">
             <label>
               Menu Name:

@@ -1,6 +1,27 @@
 const API_BASE = "http://127.0.0.1:5000";
     let staffSession = JSON.parse(localStorage.getItem("staffSession") || "null");
 
+    function logoutAdmin() {
+      // Clear stored session
+      localStorage.removeItem("staffSession");
+      staffSession = null;
+
+      // Show login section, hide dashboard
+      const lock = document.getElementById("admin-lock");
+      const dash = document.getElementById("admin-dashboard");
+      if (lock) lock.style.display = "block";
+      if (dash) dash.style.display = "none";
+
+      // Clear any old login messages/fields
+      const statusEl = document.getElementById("adminLoginStatus");
+      if (statusEl) statusEl.textContent = "";
+
+      const emailInput = document.getElementById("adminEmail");
+      const passInput = document.getElementById("adminPassword");
+      if (emailInput) emailInput.value = "";
+      if (passInput) passInput.value = "";
+    }
+
     function initDashboard() {
       const lock = document.getElementById("admin-lock");
       const dash = document.getElementById("admin-dashboard");
@@ -886,6 +907,12 @@ const API_BASE = "http://127.0.0.1:5000";
     document
       .getElementById("edit-staff-cancel")
       .addEventListener("click", closeEditStaffModal);
+
+    // Logout button
+    const logoutBtn = document.getElementById("admin-logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", logoutAdmin);
+    }
 
     // Init
     initDashboard();
