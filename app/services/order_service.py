@@ -1,7 +1,21 @@
 from decimal import Decimal
 from ..extensions import db
-from ..models import Orders, OrderItems, MenuItems, Payments, Customers
+from ..models import Orders, OrderItems, MenuItems, Payments, Customers, InventoryItems
 from .payment_service import create_payment_intent
+
+
+def _decrement_inventory(location_id, cart_items):
+    """Decrease inventory quantities based on ordered items."""
+    for it in cart_items:
+        menu_item = db.session.get(MenuItems, it['id'])
+        if menu_item:
+            # Find matching inventory item by name and location
+            inv_item = InventoryItems.query.filter_by(
+                RestaurantID=location_id,
+                Name=menu_item.Name
+            ).first()
+            if inv_item and inv_item.QuantityInStock:
+                inv_item.QuantityInStock = max(0, inv_item.QuantityInStock - it['quantity'])
 
 
 #Helper function to compute total price of cart items#
@@ -56,6 +70,9 @@ def place_order_with_items(data: dict) -> int:
                 Quantity=it['quantity'],
                 PricePerItem=menu_item.Price,
             ))
+
+    # Decrement inventory for ordered items
+    _decrement_inventory(location_id, cart_items)
 
     db.session.commit()
 
@@ -117,6 +134,9 @@ def create_stripe_order(data: dict):
                 Quantity=it['quantity'],
                 PricePerItem=menu_item.Price,
             ))
+
+    # Decrement inventory for ordered items
+    _decrement_inventory(location_id, cart_items)
 
     db.session.commit()
 

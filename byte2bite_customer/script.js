@@ -147,11 +147,12 @@ function displayMenuItems(menu) {
     const price = Number(item.price);
     const desc = item.description || "Freshly prepared.";
     const qty = cart.find(i => i.id === item.id)?.quantity || 0;
+    const isAvailable = item.available !== false;
 
     const imageSrc = getImageForItem(item);
 
     const row = document.createElement("div");
-    row.className = "menu-row";
+    row.className = isAvailable ? "menu-row" : "menu-row menu-row-unavailable";
 
     row.innerHTML = `
       <img class="menu-row-image" src="${imageSrc}" alt="${item.name}" />
@@ -165,6 +166,7 @@ function displayMenuItems(menu) {
       <div class="menu-row-right">
         <div class="menu-row-price">$${price.toFixed(2)}</div>
 
+        ${isAvailable ? `
         <div class="qty-controls">
           <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="minus">−</button>
 
@@ -178,6 +180,9 @@ function displayMenuItems(menu) {
           style="display:${qty > 0 ? "none" : "block"};">
           Add
         </button>
+        ` : `
+        <div class="out-of-stock-label">Out of Stock</div>
+        `}
       </div>
     `;
 

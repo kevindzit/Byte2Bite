@@ -41,9 +41,15 @@
       <section>
         <h2>Inventory</h2>
         <div id="inventory-container">Select a branch to load inventory.</div>
-        <button id="apply-inventory-changes-btn" type="button" style="margin-top:10px;">
-          Apply Inventory Changes
-        </button>
+        <div class="inventory-actions">
+          <button id="apply-inventory-changes-btn" type="button">
+            Apply Inventory Changes
+          </button>
+          <button type="button" class="restock-btn" onclick="restockAll()">
+            Restock All to
+          </button>
+          <input type="number" id="restock-quantity" class="small-input" value="100" min="0">
+        </div>
         <p class="status-text" id="inventory-changes-status"></p>
       </section>
 

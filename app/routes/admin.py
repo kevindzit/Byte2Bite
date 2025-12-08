@@ -260,6 +260,60 @@ def order_inventory():
     )
 
 
+@bp.patch("/admin/inventory/<int:item_id>")
+def update_inventory_item(item_id: int):
+    """Updates details of an inventory item (name, unit, quantity)."""
+    item = InventoryItems.query.get_or_404(item_id)
+    data = request.get_json(silent=True) or {}
+
+    if "name" in data:
+        item.Name = data["name"]
+    if "unit" in data:
+        item.Unit = data["unit"]
+    if "quantity" in data:
+        item.QuantityInStock = int(data["quantity"])
+
+    db.session.commit()
+
+    return jsonify({
+        "id": item.InventoryItemID,
+        "name": item.Name,
+        "quantity": item.QuantityInStock,
+        "unit": item.Unit,
+        "message": "Inventory item updated"
+    })
+
+
+@bp.delete("/admin/inventory/<int:item_id>")
+def delete_inventory_item(item_id: int):
+    """Deletes an inventory item."""
+    item = InventoryItems.query.get_or_404(item_id)
+    name = item.Name
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({"message": f"Deleted inventory item: {name}"})
+
+
+@bp.post("/admin/inventory/restock-all")
+def restock_all_inventory():
+    """Resets all inventory items for a location to a specified quantity."""
+    data = request.get_json(silent=True) or {}
+    restaurant_id = data.get("restaurantId")
+    quantity = data.get("quantity", 100)
+
+    if not restaurant_id:
+        return jsonify({"error": "restaurantId is required"}), 400
+
+    items = InventoryItems.query.filter_by(RestaurantID=restaurant_id).all()
+    count = 0
+    for item in items:
+        item.QuantityInStock = quantity
+        count += 1
+
+    db.session.commit()
+    return jsonify({"message": f"Restocked {count} items to {quantity}"})
+
+
 @bp.get("/admin/top-menu-items/<int:restaurant_id>")
 def get_top_menu_items(restaurant_id: int):
     """Return the top 10 selling menu items based on quantity & revenue."""

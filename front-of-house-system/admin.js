@@ -117,7 +117,7 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
-    // Inventory 
+    // Inventory
     async function loadInventory() {
       const branchId = getSelectedBranchId();
       const container = document.getElementById("inventory-container");
@@ -142,18 +142,28 @@ const API_BASE = "http://127.0.0.1:5000";
             <th>Quantity</th>
             <th>Unit</th>
             <th>Adjust (+/–)</th>
+            <th>Set To</th>
           </tr>
         `;
 
         data.forEach(i => {
           const tr = document.createElement("tr");
-          tr.dataset.id = i.id; 
+          tr.dataset.id = i.id;
+          // Add stock level classes
+          if (i.quantity <= 10) {
+            tr.className = "stock-critical";
+          } else if (i.quantity <= 25) {
+            tr.className = "stock-low";
+          }
           tr.innerHTML = `
             <td>${i.name}</td>
             <td>${i.quantity}</td>
             <td>${i.unit || ""}</td>
             <td>
               <input type="number" class="inv-adjust-input small-input" value="0">
+            </td>
+            <td>
+              <input type="number" class="inv-setto-input small-input" placeholder="${i.quantity}">
             </td>
           `;
           table.appendChild(tr);
@@ -173,48 +183,99 @@ const API_BASE = "http://127.0.0.1:5000";
       statusEl.textContent = "Applying changes...";
 
       const rows = document.querySelectorAll("#inventory-container table tr[data-id]");
-      const updates = [];
+      const deltaUpdates = [];
+      const setToUpdates = [];
 
       rows.forEach(row => {
         const id = parseInt(row.dataset.id, 10);
-        const input = row.querySelector(".inv-adjust-input");
-        if (!input) return;
+        const adjustInput = row.querySelector(".inv-adjust-input");
+        const setToInput = row.querySelector(".inv-setto-input");
 
-        const raw = input.value.trim();
-        if (!raw) return;
-
-        const delta = parseInt(raw, 10);
-        if (isNaN(delta) || delta === 0) return;
-
-        updates.push({ inventoryItemId: id, delta });
+        // Check "Set To" first (takes priority)
+        if (setToInput && setToInput.value.trim() !== "") {
+          const setToVal = parseInt(setToInput.value.trim(), 10);
+          if (!isNaN(setToVal) && setToVal >= 0) {
+            setToUpdates.push({ id, quantity: setToVal });
+          }
+        }
+        // Otherwise check adjust delta
+        else if (adjustInput) {
+          const raw = adjustInput.value.trim();
+          if (raw) {
+            const delta = parseInt(raw, 10);
+            if (!isNaN(delta) && delta !== 0) {
+              deltaUpdates.push({ inventoryItemId: id, delta });
+            }
+          }
+        }
       });
 
-      if (!updates.length) {
+      if (!deltaUpdates.length && !setToUpdates.length) {
         statusEl.textContent = "No changes to apply.";
         return;
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/admin/inventory/bulk-update`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            restaurantId: branchId,
-            updates: updates,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          statusEl.textContent = data.error || "Error applying changes.";
-          return;
+        // Process "Set To" updates first
+        for (const item of setToUpdates) {
+          await fetch(`${API_BASE}/api/admin/inventory/${item.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantity: item.quantity }),
+          });
         }
 
-        statusEl.textContent = data.message || "Inventory updated.";
+        // Process delta updates
+        if (deltaUpdates.length) {
+          await fetch(`${API_BASE}/api/admin/inventory/bulk-update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              restaurantId: branchId,
+              updates: deltaUpdates,
+            }),
+          });
+        }
+
+        const totalChanges = setToUpdates.length + deltaUpdates.length;
+        statusEl.textContent = `Updated ${totalChanges} item(s).`;
         await loadInventory(); 
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error applying changes.";
+      }
+    }
+
+    async function restockAll() {
+      const branchId = getSelectedBranchId();
+      const statusEl = document.getElementById("inventory-changes-status");
+      const quantityInput = document.getElementById("restock-quantity");
+      const quantity = parseInt(quantityInput.value, 10) || 100;
+
+      if (!confirm(`Reset ALL inventory items to ${quantity} for this location?`)) {
+        return;
+      }
+
+      statusEl.textContent = "Restocking all items...";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/inventory/restock-all`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restaurantId: branchId, quantity: quantity }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.error || "Error restocking.";
+          return;
+        }
+
+        statusEl.textContent = data.message || "All items restocked to 100.";
+        await loadInventory();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error restocking items.";
       }
     }
 
@@ -527,8 +588,17 @@ const API_BASE = "http://127.0.0.1:5000";
       });
     }
 
-    // Orchestration 
+    // Orchestration
     function onBranchChange() {
+      // Update the status text with selected branch name
+      const select = document.getElementById("branch-select");
+      const statusEl = document.getElementById("branch-status");
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption && statusEl) {
+        const branchName = selectedOption.textContent.split(" – ")[0];
+        statusEl.textContent = `Showing data for: ${branchName}`;
+      }
+
       loadInventory();
       loadTopItems();
       loadMenuForEditing();

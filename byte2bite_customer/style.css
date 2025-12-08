@@ -786,6 +786,20 @@ input {
   color: #bbb;
 }
 
+/* Unavailable/Out of Stock items */
+.menu-row-unavailable {
+  opacity: 0.5;
+}
+
+.out-of-stock-label {
+  background-color: #666;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+}
+
 /* cart badge in header */
 .customer-cart {
   display: inline-flex;
