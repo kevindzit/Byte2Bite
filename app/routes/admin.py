@@ -458,6 +458,19 @@ def update_menu_item(item_id: int):
     )
 
 
+# Delete items in database/edit menu section
+@bp.delete("/admin/menu-items/<int:item_id>")
+def delete_menu_item(item_id: int):
+    """Deletes a menu item."""
+    item = MenuItems.query.get_or_404(item_id)
+    name = item.Name
+
+    db.session.delete(item)
+    db.session.commit()
+
+    return jsonify({"message": f"Deleted menu item: {name}"})
+
+
 # Upload image to Google Storage
 @bp.post("/admin/menu-items/<int:item_id>/image")
 def upload_menu_item_image(item_id: int):
@@ -475,7 +488,7 @@ def upload_menu_item_image(item_id: int):
     blob_name = upload_to_gcs(image_file, dest_path)
 
     # Store the blob name in ImageURI so menu.py can sign it
-    item.ImageURI = blob_name
+    item.ImageURL = blob_name
     db.session.commit()
 
     signed_url = generate_signed_url_for_blob(blob_name)
@@ -484,7 +497,7 @@ def upload_menu_item_image(item_id: int):
         {
             "id": item.MenuItemID,
             "name": item.Name,
-            "imageUri": item.ImageURI,
+            "imageUrl": item.ImageURL,
             "imageURL": signed_url,
             "message": "Menu item image updated",
         }

@@ -591,11 +591,13 @@ const API_BASE = "http://127.0.0.1:5000";
             <th>Category</th>
             <th>Available</th>
             <th>Save</th>
+            <th>Actions</th>
           </tr>
         `;
 
         data.forEach(item => {
           const tr = document.createElement("tr");
+          tr.dataset.menuId = item.id;
           tr.innerHTML = `
             <td>
               <div class="name-with-image">
@@ -624,6 +626,7 @@ const API_BASE = "http://127.0.0.1:5000";
               <input type="file" id="file-${item.id}" accept="image/*" style="margin-bottom:4px;">
               <button type="button" onclick="uploadMenuItemImage(${item.id})">Upload</button>
               <button type="button" onclick="saveMenuItem(${item.id})">Save</button>
+              <button type="button" class="delete-btn" onclick="deleteMenuItem(${item.id})">Delete</button>
             </td>
           `;
           table.appendChild(tr);
@@ -666,8 +669,8 @@ const API_BASE = "http://127.0.0.1:5000";
 
         // Update preview image
         const img = document.getElementById(`preview-${itemId}`);
-        if (img && data.signedUrl) {
-            img.src = data.signedUrl;
+        if (img && (data.imageURL || data.signedUrl)) {
+            img.src = data.imageURL || data.signedUrl;
         }
 
         alert("Image updated!");
@@ -703,6 +706,40 @@ const API_BASE = "http://127.0.0.1:5000";
       }
     }
 
+    // ==================
+    // Delete Menu Button
+    // ==================
+    async function deleteMenuItem(id) {
+    let itemName = "this item";
+    const nameInput = document.getElementById(`name-${id}`);
+    if (nameInput && nameInput.value.trim()) {
+      itemName = nameInput.value.trim();
+    }
+
+    const confirmed = await showConfirm(
+      `Delete menu item "${itemName}"? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/menu-items/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Error deleting menu item.");
+        return;
+      }
+
+      // Reload the table so it disappears from the list
+      await loadMenuForEditing();
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting menu item.");
+    }
+    }
     
     // ==========================
     // Staff Management Functions
