@@ -1,10 +1,14 @@
 import json
 import os
+from datetime import timedelta
+
 from flask import Blueprint, jsonify, current_app
 from google.cloud import storage
-from datetime import timedelta
-from ..models import MenuItems
+from sqlalchemy import func
 
+from ..extensions import db
+from ..models import MenuItems, InventoryItems
+# use InventoryItems + db to fetch stock
 
 #Load menu item images from JSON file#
 
@@ -59,16 +63,29 @@ def get_menu(location_id):
     """Returns the menu items for a specific restaurant location
     Has contingency for missing images in DB"""
 
+    # Join inventory by restaurant/name to pull stock
     try:
-        items = MenuItems.query.filter_by(RestaurantID=location_id).all()
+        rows = (
+            db.session.query(
+                MenuItems,
+                InventoryItems.QuantityInStock.label("stock"),
+            )
+            .outerjoin(
+                InventoryItems,
+                (InventoryItems.RestaurantID == MenuItems.RestaurantID)
+                & (func.lower(InventoryItems.Name) == func.lower(MenuItems.Name)),
+            )
+            .filter(MenuItems.RestaurantID == location_id)
+            .all()
+        )
 
-        if not items:
+        if not rows:
             return jsonify({"error": "No menu items found for this location"}), 404
 
         response = []
 
         #Build response with image search#
-        for i in items:
+        for i, stock in rows:
             db_image_uri = getattr(i, "ImageURI", None) or getattr(i, "ImageURL", None)
             image_url = None
 
@@ -96,13 +113,20 @@ def get_menu(location_id):
                     # Default is a blob name in the private bucket
                     image_url = generate_signed_url_from_url(DEFAULT_IMAGE) or DEFAULT_IMAGE
             
+            # Mark unavailable when stock is 0; expose availableQuantity 
+            available_quantity = int(stock) if stock is not None else None
+            is_available = (i.IsAvailable is not False) and (
+                available_quantity is None or available_quantity > 0
+            )
+            
             response.append({
                 "id": i.MenuItemID,
                 "name": i.Name,
                 "description": i.Description,
                 "price": float(i.Price),
                 "category": i.Category,
-                "available": i.IsAvailable,
+                "available": is_available,
+                "availableQuantity": available_quantity,
                 "image": image_url
             })
 

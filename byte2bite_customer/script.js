@@ -88,6 +88,14 @@ function getImageForItem(itemOrName) {
   return defaultImg;
 }
 
+function getMaxQuantityForItem(item) {
+  const val = Number(item?.availableQuantity ?? item?.stock ?? item?.maxQuantity);
+  if (Number.isFinite(val)) {
+    return Math.max(0, val);
+  }
+  return null; // null = unlimited / unknown
+}
+
 
 // =====================
 // GLOBAL CART FUNCTIONS
@@ -109,7 +117,11 @@ function updateCartCount() {
   badge.textContent = total;
 }
 
-function setItemQuantity(id, name, price, quantity) {
+function setItemQuantity(id, name, price, quantity, maxQuantity) {
+  if (typeof maxQuantity === "number" && Number.isFinite(maxQuantity)) {
+    quantity = Math.min(quantity, Math.max(0, maxQuantity));
+  }
+
   let cart = getCart();
   const existing = cart.find(i => i.id === id);
 
@@ -117,8 +129,15 @@ function setItemQuantity(id, name, price, quantity) {
     cart = cart.filter(i => i.id !== id);
   } else if (existing) {
     existing.quantity = quantity;
+    if (typeof maxQuantity === "number" && Number.isFinite(maxQuantity)) {
+      existing.maxQuantity = maxQuantity;
+    }
   } else {
-    cart.push({ id, name, price, quantity });
+    const itemPayload = { id, name, price, quantity };
+    if (typeof maxQuantity === "number" && Number.isFinite(maxQuantity)) {
+      itemPayload.maxQuantity = maxQuantity;
+    }
+    cart.push(itemPayload);
   }
 
   saveCart(cart);
@@ -161,10 +180,16 @@ function displayMenuItems(menu) {
   menu.forEach(item => {
     const price = Number(item.price);
     const desc = item.description || "Freshly prepared.";
-    const qty = cart.find(i => i.id === item.id)?.quantity || 0;
-    const isAvailable = item.available !== false;
+    const maxQty = getMaxQuantityForItem(item);
+    const qtyInCart = cart.find(i => i.id === item.id)?.quantity || 0;
+    const qty = maxQty === null ? qtyInCart : Math.min(qtyInCart, maxQty);
+    const hasStock = maxQty === null ? true : maxQty > 0;
+    const isAvailable = item.available !== false && hasStock;
 
     const imageSrc = getImageForItem(item);
+
+    const addDisabled = !isAvailable || (maxQty !== null && qty >= maxQty);
+    const plusDisabled = maxQty !== null && qty >= maxQty;
 
     const row = document.createElement("div");
     row.className = isAvailable ? "menu-row" : "menu-row menu-row-unavailable";
@@ -183,18 +208,20 @@ function displayMenuItems(menu) {
 
         ${isAvailable ? `
         <div class="qty-controls">
-          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="minus">−</button>
+          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="minus" data-max="${maxQty ?? ''}">−</button>
 
           <input class="qty-input" type="text" value="${qty}" maxlength="2"
-                 data-id="${item.id}" data-name="${item.name}" data-price="${price}" />
+                 data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-max="${maxQty ?? ''}" />
 
-          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="plus">+</button>
+          <button class="qty-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}" data-action="plus" data-max="${maxQty ?? ''}" ${plusDisabled ? "disabled" : ""}>+</button>
         </div>
 
         <button class="menu-row-add-btn add-btn" data-id="${item.id}" data-name="${item.name}" data-price="${price}"
+          data-max="${maxQty ?? ''}" ${addDisabled ? "disabled" : ""}
           style="display:${qty > 0 ? "none" : "block"};">
           Add
         </button>
+        ${maxQty !== null ? `<div class="stock-note">In stock: ${Math.max(0, maxQty - qty)}</div>` : ""}
         ` : `
         <div class="out-of-stock-label">Out of Stock</div>
         `}
@@ -219,15 +246,24 @@ function attachQuantityControls() {
       const name = btn.dataset.name;
       const price = Number(btn.dataset.price);
       const action = btn.dataset.action;
+      const max = Number(btn.dataset.max);
+      const maxQty = Number.isFinite(max) ? max : null;
 
       let cart = getCart();
       let existing = cart.find(i => i.id === id);
       let qty = existing ? existing.quantity : 0;
 
-      if (action === "plus") qty++;
+      if (action === "plus") {
+        if (maxQty !== null && qty >= maxQty) return;
+        qty++;
+      }
       if (action === "minus") qty--;
 
-      setItemQuantity(id, name, price, qty);
+      if (maxQty !== null && qty > maxQty) {
+        qty = maxQty;
+      }
+
+      setItemQuantity(id, name, price, qty, maxQty === null ? undefined : maxQty);
     });
   });
 
@@ -241,20 +277,27 @@ function attachQuantityControls() {
       const id = Number(input.dataset.id);
       const name = input.dataset.name;
       const price = Number(input.dataset.price);
+      const max = Number(input.dataset.max);
+      const maxQty = Number.isFinite(max) ? max : null;
 
       const qty = Number(input.value) || 0;
-      setItemQuantity(id, name, price, qty);
+      const clampedQty = (maxQty !== null && qty > maxQty) ? maxQty : qty;
+      setItemQuantity(id, name, price, clampedQty, maxQty === null ? undefined : maxQty);
     });
   });
 
   // “Add” button
   document.querySelectorAll(".add-btn").forEach(btn => {
     btn.addEventListener("click", () => {
+      if (btn.disabled) return;
       const id = Number(btn.dataset.id);
       const name = btn.dataset.name;
       const price = Number(btn.dataset.price);
+      const max = Number(btn.dataset.max);
+      const maxQty = Number.isFinite(max) ? max : null;
 
-      setItemQuantity(id, name, price, 1);
+      if (maxQty !== null && maxQty <= 0) return;
+      setItemQuantity(id, name, price, 1, maxQty === null ? undefined : maxQty);
     });
   });
 }
@@ -274,6 +317,19 @@ async function loadCart() {
   const cart = getCart();
   const container = document.getElementById("cart-items");
   const totalEl = document.getElementById("total");
+
+  // Clamp any quantities that exceed known max
+  let cartUpdated = false;
+  cart.forEach(item => {
+    const max = Number(item.maxQuantity);
+    if (Number.isFinite(max) && item.quantity > max) {
+      item.quantity = max;
+      cartUpdated = true;
+    }
+  });
+  if (cartUpdated) {
+    saveCart(cart);
+  }
 
   if (!container) {
     console.error("Cart container not found!");
@@ -308,6 +364,11 @@ async function loadCart() {
 
     const imageSrc = getImageForItem(item);
 
+    const max = Number(item.maxQuantity);
+    const maxQty = Number.isFinite(max) ? max : null;
+
+    const plusDisabled = maxQty !== null && item.quantity >= maxQty;
+
     row.innerHTML = `
       <img class="cart-item-image" src="${imageSrc}" alt="${item.name}" />
 
@@ -317,7 +378,7 @@ async function loadCart() {
       </div>
 
       <div class="cart-item-controls">
-        <button class="qty-btn" data-index="${index}" data-action="minus">−</button>
+        <button class="qty-btn" data-index="${index}" data-action="minus" data-max="${maxQty ?? ''}">−</button>
 
         <input
           class="qty-input cart-qty-input"
@@ -325,9 +386,10 @@ async function loadCart() {
           value="${item.quantity}"
           maxlength="2"
           data-index="${index}"
+          data-max="${maxQty ?? ''}"
         />
 
-        <button class="qty-btn" data-index="${index}" data-action="plus">+</button>
+        <button class="qty-btn" data-index="${index}" data-action="plus" data-max="${maxQty ?? ''}" ${plusDisabled ? "disabled" : ""}>+</button>
       </div>
 
       <button class="remove-btn" onclick="removeItem(${index})">Remove</button>
@@ -372,11 +434,16 @@ async function loadCart() {
     btn.addEventListener("click", () => {
       const index = Number(btn.dataset.index);
       const action = btn.dataset.action;
+      const max = Number(btn.dataset.max);
+      const maxQty = Number.isFinite(max) ? max : null;
 
       let cart = getCart();
       let qty = cart[index].quantity;
 
-      if (action === "plus") qty++;
+      if (action === "plus") {
+        if (maxQty !== null && qty >= maxQty) return;
+        qty++;
+      }
       if (action === "minus") qty--;
 
       updateCartQuantity(index, qty);
@@ -390,7 +457,15 @@ async function loadCart() {
 
     input.addEventListener("change", () => {
       const index = Number(input.dataset.index);
-      const qty = Number(input.value) || 0;
+      const max = Number(input.dataset.max);
+      const maxQty = Number.isFinite(max) ? max : null;
+
+      let qty = Number(input.value) || 0;
+      if (maxQty !== null && qty > maxQty) {
+        qty = maxQty;
+        input.value = maxQty;
+      }
+
       updateCartQuantity(index, qty);
     });
   });
@@ -399,6 +474,12 @@ async function loadCart() {
 
 function updateCartQuantity(index, qty) {
   let cart = getCart();
+  const max = Number(cart[index]?.maxQuantity);
+  const maxQty = Number.isFinite(max) ? max : null;
+
+  if (maxQty !== null && qty > maxQty) {
+    qty = maxQty;
+  }
 
   if (qty <= 0) {
     cart.splice(index, 1);
@@ -431,16 +512,30 @@ async function placeOrder() {
     return;
   }
 
+  // Normalize quantities against any known maxQuantity
+  let cartChanged = false;
+  const normalizedCart = cart.map(item => {
+    const max = Number(item.maxQuantity);
+    if (Number.isFinite(max) && item.quantity > max) {
+      cartChanged = true;
+      return { ...item, quantity: max };
+    }
+    return item;
+  });
+  if (cartChanged) {
+    saveCart(normalizedCart);
+  }
+
   const { id: locationId, label } = getStoredLocation();
   const session = getCustomerSession();
   const paymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value || 'in-store';
 
   // Calculate the subtotal to send to backend (tax is added on backend)
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = normalizedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const payload = {
     locationId,
-    items: cart.map(i => ({
+    items: normalizedCart.map(i => ({
       id: i.id,
       quantity: i.quantity
     }))
@@ -453,7 +548,7 @@ async function placeOrder() {
 
     // Check if rewards are applied (from checkout page)
     if (typeof window.rewardsApplied !== 'undefined' && window.rewardsApplied && typeof window.availablePoints !== 'undefined') {
-      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = normalizedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const tax = subtotal * 0.0875; // Illinois tax rate
       const maxUsable = Math.min(window.availablePoints, Math.floor((subtotal + tax) * 100));
       payload.pointsToRedeem = maxUsable;

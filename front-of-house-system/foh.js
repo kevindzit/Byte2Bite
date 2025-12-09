@@ -203,6 +203,7 @@
                 const response = await fetch(`http://127.0.0.1:5000/api/menu/${selectedRestaurant}`);
                 const items = await response.json();
                 menuItems = items;
+                normalizeCartQuantities();
                 displayMenuItems(items);
             } catch (error) {
                 console.error('Error loading menu:', error);
@@ -284,6 +285,14 @@
             return defaultImg;
         }
 
+        function getMaxQuantityForItem(item) {
+            const val = Number(item?.availableQuantity ?? item?.stock ?? item?.maxQuantity);
+            if (Number.isFinite(val)) {
+                return Math.max(0, val);
+            }
+            return null; // null = unknown/unlimited
+        }
+
         // Display menu items
         function displayMenuItems(items) {
             const container = document.getElementById('menuItems');
@@ -291,16 +300,24 @@
 
             items.forEach(item => {
                 const cartItem = cart.find(ci => ci.id === item.id);
-                const quantity = cartItem ? cartItem.quantity : 0;
+                const maxQty = getMaxQuantityForItem(item);
+                const hasStock = maxQty === null ? true : maxQty > 0;
+                const isAvailable = (item.available !== false) && hasStock;
+
+                const quantity = cartItem ? (maxQty === null ? cartItem.quantity : Math.min(cartItem.quantity, maxQty)) : 0;
                 const price = parseFloat(item.price);
+
+                const plusDisabled = !isAvailable || (maxQty !== null && quantity >= maxQty);
+                const minusDisabled = !isAvailable || quantity <= 0;
+                const stockNote = maxQty !== null ? `In stock: ${Math.max(0, maxQty - quantity)}` : '';
 
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'menu-item';
                 itemDiv.innerHTML = `
                     <div class="quantity-controls">
-                        <button class="quantity-btn" onclick="decreaseQuantity(${item.id})">−</button>
+                        <button class="quantity-btn" onclick="decreaseQuantity(${item.id})" ${minusDisabled ? 'disabled' : ''}>−</button>
                         <div class="quantity-checkbox">${quantity || 0}</div>
-                        <button class="quantity-btn" onclick="increaseQuantity(${item.id})">+</button>
+                        <button class="quantity-btn" onclick="increaseQuantity(${item.id})" ${plusDisabled ? 'disabled' : ''}>+</button>
                     </div>
                     <img class="menu-item-image" src="${getImageForItem(item)}" alt="${item.name}">
                     <div class="menu-item-details">
@@ -308,6 +325,8 @@
                         <div class="menu-item-description">
                             ${item.description || 'Delicious menu item with fresh ingredients.'}
                         </div>
+                        ${!isAvailable ? '<div class="out-of-stock-label">Out of Stock</div>' : ''}
+                        ${stockNote ? `<div class="stock-note">${stockNote}</div>` : ''}
                     </div>
                     <div class="menu-item-price">$${price.toFixed(2)}</div>
                 `;
@@ -319,16 +338,24 @@
         function increaseQuantity(itemId) {
             const menuItem = menuItems.find(item => item.id === itemId);
             const cartItem = cart.find(item => item.id === itemId);
+            if (!menuItem) return;
+
+            const maxQty = getMaxQuantityForItem(menuItem);
+            const hasStock = maxQty === null ? true : maxQty > 0;
+            if (!hasStock) return;
 
             if (cartItem) {
-                if (cartItem.quantity >= 99) return;
+                if (maxQty !== null && cartItem.quantity >= maxQty) return;
                 cartItem.quantity++;
+                if (maxQty !== null) cartItem.maxQuantity = maxQty;
             } else {
+                if (maxQty !== null && maxQty <= 0) return;
                 cart.push({
                     id: itemId,
                     name: menuItem.name,
                     price: parseFloat(menuItem.price),
-                    quantity: 1
+                    quantity: 1,
+                    ...(maxQty !== null ? { maxQuantity: maxQty } : {})
                 });
             }
 
@@ -354,6 +381,38 @@
         function updateCart() {
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             document.getElementById('cartBadge').textContent = totalItems;
+        }
+
+        function normalizeCartQuantities() {
+            let changed = false;
+            cart = cart
+                .map(item => {
+                    const menuItem = menuItems.find(mi => mi.id === item.id) || item;
+                    const maxQty = getMaxQuantityForItem(menuItem);
+                    const hasStock = maxQty === null ? true : maxQty > 0;
+
+                    if (!hasStock) {
+                        changed = true;
+                        return null;
+                    }
+
+                    let qty = item.quantity || 0;
+                    if (maxQty !== null && qty > maxQty) {
+                        qty = maxQty;
+                        changed = true;
+                    }
+
+                    return {
+                        ...item,
+                        quantity: qty,
+                        ...(maxQty !== null ? { maxQuantity: maxQty } : {})
+                    };
+                })
+                .filter(Boolean);
+
+            if (changed) {
+                updateCart();
+            }
         }
 
         // Phone search with auto-formatting
@@ -488,6 +547,7 @@
         }
 
         function updatePaymentDisplay() {
+            normalizeCartQuantities();
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             document.getElementById('paymentTotal').textContent = total.toFixed(2);
 
@@ -526,6 +586,7 @@
 
         // Complete order
         async function completeOrder() {
+            normalizeCartQuantities();
             if (cart.length === 0) {
                 alert('Cart is empty!');
                 return;
