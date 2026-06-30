@@ -23,7 +23,7 @@ def getconn():
         "carbide-ego-476119-a7:us-central1:byte2bite",
         "pymysql",
         user="byte2bite",
-        password="Byte2Bite224!",
+        password=os.environ.get("DB_PASSWORD"),  # set DB_PASSWORD in your environment
         db="byte2bite"
     )
     return conn
